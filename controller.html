@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>PC Remote</title>
+<meta name="theme-color" content="#111">
+<style>
+  :root{ --bg:#0f1113; --panel:#1a1c1e; --btn:#2a2d30; --accent:#3b82f6; --text:#e2e8f0; --muted:#94a3b8; --active:#22c55e; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;}
+  .wrap{max-width:600px;margin:0 auto;padding:15px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;}
+  
+  /* Header */
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  #status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:red;}
+  .dot.ok{background:#22c55e;}
+  
+  /* Slider */
+  .slider-box { display:flex; align-items:center; background:var(--panel); padding:8px 12px; border-radius:12px; margin-bottom:15px; border:1px solid #333; }
+  .slider-label { font-size:12px; color:var(--muted); margin-right:10px; font-weight:bold; }
+  input[type=range] { flex:1; accent-color: var(--accent); cursor: pointer; }
+
+  /* Buttons */
+  .media-row{display:flex;gap:10px;margin-bottom:15px;}
+  .icon-btn{background:var(--btn);border:none;border-radius:12px;color:#fff;padding:12px;flex:1;font-weight:bold;}
+  .icon-btn:active{background:var(--accent);}
+  
+  /* Touchpad */
+  #touchpad{flex:1;background:var(--panel);border-radius:16px;margin-bottom:15px;position:relative;border:1px solid #333;}
+  #touchpad:active{border-color:var(--accent);}
+  .pad-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ffffff1a;font-size:40px;pointer-events:none;}
+
+  /* Mouse Row */
+  .mouse-row{display:flex;gap:15px;height:60px;margin-bottom:15px;}
+  .mouse-btn{flex:1;background:var(--btn);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;}
+  .mouse-btn:active{background:var(--accent);}
+  .mouse-btn.drag-active { background: var(--active); color: #fff; box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .tool-btn{background:#222;color:var(--muted);border:1px solid #333;padding:10px;border-radius:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  
+  <div class="header">
+    <div style="font-weight:700">Remote Lite</div>
+    <div id="status"><div class="dot" id="dot"></div> <span id="statText">Disconnected</span></div>
+  </div>
+
+  <div class="slider-box">
+    <span class="slider-label">SPEED</span>
+    <input type="range" min="0.5" max="5.0" step="0.1" value="1.5" oninput="setSpeed(this.value)">
+  </div>
+
+  <div class="media-row">
+    <button class="icon-btn" onclick="sendKey('vol_down')">Vol -</button>
+    <button class="icon-btn" onclick="sendKey('mute')">Mute</button>
+    <button class="icon-btn" onclick="sendKey('vol_up')">Vol +</button>
+  </div>
+  <div class="media-row">
+    <button class="icon-btn" onclick="sendKey('prev')">Prev</button>
+    <button class="icon-btn" onclick="sendKey('play')">Play/Pause</button>
+    <button class="icon-btn" onclick="sendKey('next')">Next</button>
+  </div>
+
+  <div id="touchpad">
+    <div class="pad-hint">TRACKPAD</div>
+  </div>
+
+  <div class="mouse-row">
+    <button class="mouse-btn" ontouchstart="clickBtn('left', event)">L</button>
+    <button class="mouse-btn" id="dragBtn" onclick="toggleDrag()">🔓 Hold</button>
+    <button class="mouse-btn" ontouchstart="clickBtn('right', event)">R</button>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" onclick="toggleKeyboard()" style="background:var(--accent); color:white;">⌨ Type Text</button>
+    <button class="tool-btn" onclick="sendKey('ENTER')">Enter</button>
+    <button class="tool-btn" onclick="sendKey('BACKSPACE')">Backspace</button>
+    <button class="tool-btn" onclick="sendKey('ESC')">Esc</button>
+  </div>
+
+  <input id="hiddenInput" type="text" style="opacity:0;position:fixed;top:-1000px;" autocomplete="off" autocorrect="off">
+</div>
+
+<script>
+let ws, reconnectTimer;
+const statusText = document.getElementById('statText');
+const statusDot = document.getElementById('dot');
+
+function vibrate(){ if(navigator.vibrate) navigator.vibrate(15); }
+
+function connect() {
+  ws = new WebSocket(`ws://${location.hostname}:8080/ws`);
+  ws.onopen = () => {
+    statusText.innerText = "Connected";
+    statusDot.classList.add('ok');
+    if(reconnectTimer) clearInterval(reconnectTimer);
+  };
+  ws.onclose = () => {
+    statusText.innerText = "Disconnected";
+    statusDot.classList.remove('ok');
+    if(isDragging) toggleDrag(); 
+    reconnectTimer = setTimeout(connect, 1000);
+  };
+}
+connect();
+
+function send(data){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(data)); }
+function setSpeed(val) { send({command: 'set_speed', value: val}); }
+function sendKey(key){ vibrate(); send({command: 'key', key: key}); }
+function clickBtn(btn, e){ if(e) e.preventDefault(); vibrate(); send({command: 'click', button: btn}); }
+
+/* Drag Logic */
+let isDragging = false;
+const dragBtn = document.getElementById('dragBtn');
+function toggleDrag() {
+  isDragging = !isDragging;
+  if (isDragging) {
+    dragBtn.classList.add('drag-active');
+    dragBtn.innerText = "🔒 Dragging";
+    if(navigator.vibrate) navigator.vibrate([50]); 
+    send({command: 'drag_start'});
+  } else {
+    dragBtn.classList.remove('drag-active');
+    dragBtn.innerText = "🔓 Hold";
+    if(navigator.vibrate) navigator.vibrate([20]);
+    send({command: 'drag_end'});
+  }
+}
+
+/* Touchpad */
+const pad = document.getElementById('touchpad');
+let lastX=0, lastY=0, touchStartT=0, isScroll=false;
+
+pad.addEventListener('touchstart', e => {
+  if(e.touches.length === 1){
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; touchStartT = Date.now(); isScroll = false;
+  } else if (e.touches.length === 2) {
+    isScroll = true; lastY = e.touches[0].clientY;
+  }
+}, {passive: false});
+
+pad.addEventListener('touchmove', e => {
+  e.preventDefault(); 
+  if(isScroll && e.touches.length === 2){
+    let cy = e.touches[0].clientY; send({command: 'scroll', dy: cy - lastY}); lastY = cy;
+  } else if (e.touches.length === 1) {
+    let cx = e.touches[0].clientX; let cy = e.touches[0].clientY;
+    send({command: 'move', dx: cx - lastX, dy: cy - lastY}); lastX = cx; lastY = cy;
+  }
+}, {passive: false});
+
+pad.addEventListener('touchend', e => {
+  if(!isScroll && e.changedTouches.length === 1 && (Date.now() - touchStartT < 150)) clickBtn('left');
+});
+
+/* --- UPDATED KEYBOARD LOGIC (FIX FOR BACKSPACE) --- */
+const hiddenInput = document.getElementById('hiddenInput');
+
+// Always keep a space in the box so Backspace has something to delete
+const SPACER = " "; 
+
+function toggleKeyboard(){ 
+  hiddenInput.value = SPACER; 
+  hiddenInput.focus(); 
+  hiddenInput.click(); 
+}
+
+hiddenInput.addEventListener('input', (e) => {
+  // Case 1: User typed something
+  if (e.data) {
+    send({command: 'type', text: e.data});
+  } 
+  // Case 2: Standard Backspace
+  else if (e.inputType === "deleteContentBackward") {
+    sendKey("BACKSPACE");
+  }
+  // Case 3: "Ghost" Backspace (Android Fix)
+  // If the box is empty, it means the user deleted our SPACER
+  else if (hiddenInput.value.length === 0) {
+    sendKey("BACKSPACE");
+  }
+  
+  // Immediately restore the spacer so Backspace works again
+  hiddenInput.value = SPACER; 
+});
+
+// Case 4: Catch "Enter" Key
+hiddenInput.addEventListener('keyup', (e) => {
+  if(e.key === "Enter") sendKey("ENTER");
+});
+</script>
+</body>
+</html>
