@@ -125,6 +125,27 @@ async def websocket_handler(request):
                     
                     elif cmd == "set_acc":
                         state["acceleration_enabled"] = bool(data.get("value"))
+                    
+
+                    elif cmd == "key_toggle":
+                        key_name = data.get("key")
+                        
+                        # CHANGE HERE: Variable name changed from 'state' to 'k_state'
+                        k_state = data.get("state") 
+                        
+                        # Map string to pynput Key
+                        target = None
+                        if key_name == "ctrl": target = Key.ctrl
+                        elif key_name == "alt": target = Key.alt
+                        elif key_name == "shift": target = Key.shift
+                        elif key_name == "cmd": target = Key.cmd 
+                        
+                        if target:
+                            # CHANGE HERE: Check 'k_state' instead of 'state'
+                            if k_state == "down": 
+                                keyboard.press(target)
+                            elif k_state == "up": 
+                                keyboard.release(target)
 
                 except Exception as e:
                     print(f"Error: {e}")

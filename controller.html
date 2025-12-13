@@ -75,6 +75,12 @@
     <button class="mouse-btn" ontouchstart="clickBtn('right', event)">R</button>
   </div>
 
+  <div class="mouse-row">
+    <button class="mouse-btn" onclick="toggleModifier('ctrl', this)">Ctrl</button>
+    <button class="mouse-btn" onclick="toggleModifier('alt', this)">Alt</button>
+    <button class="mouse-btn" onclick="sendKey('win')">Win</button>
+  </div>
+
   <div class="tools">
     <button class="tool-btn" onclick="toggleKeyboard()" style="background:var(--accent); color:white;">⌨ Type Text</button>
     <button class="tool-btn" onclick="sendKey('ENTER')">Enter</button>
@@ -128,6 +134,22 @@ function toggleDrag() {
     dragBtn.innerText = "🔓 Hold";
     if(navigator.vibrate) navigator.vibrate([20]);
     send({command: 'drag_end'});
+  }
+}
+function toggleModifier(key, btn) {
+  // Check if button is currently active
+  const isActive = btn.classList.contains('drag-active'); // Re-using your drag-active style
+  
+  if (isActive) {
+    // Release the key
+    btn.classList.remove('drag-active');
+    if(navigator.vibrate) navigator.vibrate(20);
+    send({command: 'key_toggle', key: key, state: 'up'});
+  } else {
+    // Hold the key down
+    btn.classList.add('drag-active');
+    if(navigator.vibrate) navigator.vibrate(50);
+    send({command: 'key_toggle', key: key, state: 'down'});
   }
 }
 
