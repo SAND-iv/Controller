@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "PC Controller",
+    "slug": "pc-controller",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f1113"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1113"
+      },
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.anonymous.pccontroller"
+    },
+    "ios": {
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Used to connect to your PC over Bluetooth",
+        "NSBluetoothPeripheralUsageDescription": "Used to connect to your PC over Bluetooth"
+      }
+    },
+    "plugins": [
+      "react-native-ble-plx",
+      [
+        "react-native-permissions",
+        {
+          "iosPermissions": [
+            "Bluetooth"
+          ]
+        }
+      ]
+    ]
+  }
+}
