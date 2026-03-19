@@ -4,12 +4,12 @@
     "slug": "pc-controller",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "backgroundColor": "#0f1113"
     },
     "android": {
+      "package": "com.anonymous.pccontroller",
       "adaptiveIcon": {
         "backgroundColor": "#0f1113"
       },
@@ -20,25 +20,41 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
-      ],
-      "package": "com.anonymous.pccontroller"
+      ]
     },
     "ios": {
+      "bundleIdentifier": "com.anonymous.pccontroller",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "Used to connect to your PC over Bluetooth",
         "NSBluetoothPeripheralUsageDescription": "Used to connect to your PC over Bluetooth"
       }
     },
     "plugins": [
-      "react-native-ble-plx",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [],
+          "bluetoothAlwaysPermission": "Allow PC Controller to connect to your PC"
+        }
+      ],
       [
         "react-native-permissions",
         {
-          "iosPermissions": [
-            "Bluetooth"
+          "androidPermissions": [
+            "android.permission.BLUETOOTH",
+            "android.permission.BLUETOOTH_ADMIN",
+            "android.permission.BLUETOOTH_SCAN",
+            "android.permission.BLUETOOTH_CONNECT",
+            "android.permission.ACCESS_FINE_LOCATION"
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4511fccd-9019-484c-88a2-3f8f53490927"
+      }
+    }
   }
 }
