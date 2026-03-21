@@ -1,3 +1,6 @@
+import { Buffer } from 'buffer';
+global.Buffer = Buffer;
+
 // App.js
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
@@ -24,3 +27,4 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
