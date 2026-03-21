@@ -1,0 +1,89 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install dependencies
+        working-directory: ./ControllerApp2
+        run: npm install
+
+      - name: Install Capacitor assets tool
+        working-directory: ./ControllerApp2
+        run: npm install -D @capacitor/assets
+
+      - name: Add Android platform
+        working-directory: ./ControllerApp2
+        run: npx cap add android || true
+
+      - name: Copy icon into resources
+        working-directory: ./ControllerApp2
+        run: |
+          mkdir -p resources
+          if [ -f "icon.png" ]; then
+            cp icon.png resources/icon.png
+            echo "Icon copied successfully"
+          else
+            echo "No icon.png found, skipping"
+          fi
+
+      - name: Generate icons
+        working-directory: ./ControllerApp2
+        run: |
+          if [ -f "resources/icon.png" ]; then
+            npx capacitor-assets generate --android || true
+          else
+            echo "Skipping icon generation — no icon found"
+          fi
+
+      - name: Sync Capacitor
+        working-directory: ./ControllerApp2
+        run: npx cap sync android
+
+      - name: Inject Camera permission
+        working-directory: ./ControllerApp2/android/app/src/main
+        run: |
+          python3 - <<'EOF'
+          with open('AndroidManifest.xml', 'r') as f:
+              c = f.read()
+          perms = '\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />'
+          c = c.replace('<uses-permission android:name="android.permission.INTERNET" />', '<uses-permission android:name="android.permission.INTERNET" />' + perms)
+          with open('AndroidManifest.xml', 'w') as f:
+              f.write(c)
+          print("Done")
+          EOF
+
+      - name: Make gradlew executable
+        working-directory: ./ControllerApp2/android
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        working-directory: ./ControllerApp2/android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PC-Controller-APK
+          path: ControllerApp2/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

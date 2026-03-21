@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+<title>PC Controller</title>
+<meta name="theme-color" content="#0f1113">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg:#0f1113; --panel:#1a1c1e; --btn:#2a2d30;
+    --accent:#3b82f6; --text:#e2e8f0; --muted:#94a3b8;
+    --active:#22c55e; --red:#ef4444; --usb:#f59e0b; --hot:#10b981;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,sans-serif;overflow:hidden;
+    user-select:none;-webkit-user-select:none;}
+
+  /* ── CONNECT SCREEN ── */
+  #connectScreen{display:flex;flex-direction:column;align-items:center;
+    justify-content:center;height:100%;padding:20px;overflow-y:auto;}
+  #connectScreen h1{font-size:30px;font-weight:800;margin-bottom:4px;}
+  .sub{color:var(--muted);font-size:13px;text-align:center;
+    margin-bottom:18px;line-height:1.5;}
+
+  /* Mode tabs */
+  .mode-tabs{display:flex;width:100%;background:var(--panel);
+    border-radius:14px;padding:4px;margin-bottom:14px;gap:3px;}
+  .mode-tab{flex:1;padding:9px 4px;border:none;border-radius:10px;
+    font-size:11px;font-weight:700;color:var(--muted);
+    background:transparent;cursor:pointer;transition:all .2s;}
+  .mode-tab.active-wifi{background:var(--accent);color:#fff;}
+  .mode-tab.active-usb{background:var(--usb);color:#fff;}
+  .mode-tab.active-hot{background:var(--hot);color:#fff;}
+
+  .panel{width:100%;display:none;}
+  .panel.active{display:block;}
+
+  .card{width:100%;background:var(--panel);border-radius:14px;
+    padding:16px;margin-bottom:10px;border:1px solid #2a2d30;}
+  .card label{font-size:11px;color:var(--muted);font-weight:700;
+    text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;}
+  .card input{width:100%;background:var(--btn);border:none;border-radius:10px;
+    padding:12px;font-size:18px;color:var(--text);letter-spacing:1px;outline:none;}
+  .card .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+  .primary-btn{width:100%;border:none;border-radius:14px;padding:15px;
+    font-size:15px;font-weight:800;color:#fff;cursor:pointer;margin-bottom:10px;}
+  .wifi-btn{background:var(--accent);}
+  .usb-btn{background:var(--usb);}
+  .hot-btn{background:var(--hot);}
+  .primary-btn:disabled{opacity:0.4;}
+
+  .scan-btn{width:100%;background:var(--panel);border:2px solid var(--accent);
+    border-radius:14px;padding:12px;font-size:13px;font-weight:700;
+    color:var(--accent);margin-bottom:10px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;}
+
+  .info-box{background:var(--panel);border-radius:12px;padding:14px;
+    margin-bottom:10px;border:1px solid #333;}
+  .info-box .step{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;}
+  .info-box .step:last-child{margin-bottom:0;}
+  .info-box .num{background:var(--usb);color:#fff;border-radius:50%;
+    width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px;}
+  .info-box .num.green{background:var(--hot);}
+  .info-box .step-text{font-size:12px;color:var(--muted);line-height:1.5;}
+  .info-box code{background:var(--btn);padding:2px 6px;border-radius:4px;
+    font-size:11px;color:var(--text);}
+
+  .tip{color:var(--muted);font-size:12px;text-align:center;line-height:1.6;}
+  #connectError{color:var(--red);font-size:13px;text-align:center;
+    margin-bottom:8px;display:none;}
+
+  /* ── QR SCANNER ── */
+  #scanScreen{display:none;flex-direction:column;height:100%;background:#000;}
+  .scan-header{display:flex;align-items:center;justify-content:space-between;
+    padding:48px 20px 14px;background:var(--bg);}
+  .scan-header h2{font-size:17px;font-weight:700;}
+  .scan-close{background:var(--btn);border:none;color:var(--text);font-size:15px;
+    padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:600;}
+  #qr-reader{width:100%!important;flex:1;border:none!important;}
+  #qr-reader video{width:100%!important;height:100%!important;object-fit:cover!important;}
+  #qr-reader img{display:none!important;}
+  .scan-hint{background:var(--bg);padding:14px;text-align:center;
+    color:var(--muted);font-size:13px;line-height:1.5;}
+
+  /* ── CONTROLLER ── */
+  #controllerScreen{display:none;height:100%;flex-direction:column;}
+  .wrap{padding:12px;height:100%;display:flex;flex-direction:column;}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .disc-btn{background:none;border:none;color:var(--muted);font-size:13px;padding:6px;}
+  .status-pill{display:flex;align-items:center;gap:6px;background:var(--panel);
+    padding:4px 10px;border-radius:20px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--red);}
+  .dot.ok{background:var(--active);}
+  .status-pill span{font-size:12px;font-weight:600;}
+  .conn-badge{font-size:10px;padding:2px 6px;border-radius:8px;margin-left:2px;font-weight:700;}
+  .badge-wifi{background:#1d4ed8;color:#fff;}
+  .badge-usb{background:#b45309;color:#fff;}
+  .badge-hot{background:#065f46;color:#fff;}
+
+  .slider-box{display:flex;align-items:center;background:var(--panel);
+    padding:8px 12px;border-radius:12px;margin-bottom:10px;border:1px solid #333;}
+  .slider-label{font-size:11px;color:var(--muted);font-weight:700;margin-right:10px;width:44px;}
+  input[type=range]{flex:1;accent-color:var(--accent);}
+
+  .media-row{display:flex;gap:8px;margin-bottom:8px;}
+  .icon-btn{background:var(--btn);border:none;border-radius:12px;color:var(--text);
+    padding:12px;flex:1;font-weight:600;font-size:13px;}
+  .icon-btn:active{background:var(--accent);}
+
+  #touchpad{flex:1;background:var(--panel);border-radius:16px;margin-bottom:10px;
+    position:relative;border:1px solid #333;touch-action:none;}
+  #touchpad:active{border-color:var(--accent);}
+  .pad-hint{position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+  .pad-hint p:first-child{color:#ffffff18;font-size:22px;font-weight:700;}
+  .pad-hint p:last-child{color:#ffffff12;font-size:11px;margin-top:4px;}
+
+  .mouse-row{display:flex;gap:10px;height:52px;margin-bottom:8px;}
+  .mouse-btn{flex:1;background:var(--btn);border:none;border-radius:12px;
+    color:var(--text);font-size:14px;font-weight:700;}
+  .mouse-btn:active,.mouse-btn.active{background:var(--active);}
+
+  .tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;}
+  .tool-btn{background:#222;color:var(--muted);border:1px solid #333;
+    padding:12px;border-radius:10px;font-size:13px;font-weight:600;}
+  .tool-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .tool-btn:active{opacity:.7;}
+  #hiddenInput{position:fixed;top:-200px;left:0;width:1px;height:1px;opacity:0;}
+</style>
+</head>
+<body>
+
+<!-- ── CONNECT SCREEN ── -->
+<div id="connectScreen" style="height:100%;">
+  <h1>PC Controller</h1>
+  <p class="sub">Choose how to connect to your PC</p>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active-wifi" id="tabWifi" onclick="switchMode('wifi')">📡 WiFi</button>
+    <button class="mode-tab" id="tabUsb"  onclick="switchMode('usb')">🔌 USB</button>
+    <button class="mode-tab" id="tabHot"  onclick="switchMode('hot')">📶 Hotspot</button>
+  </div>
+
+  <!-- WiFi panel -->
+  <div id="wifiPanel" class="panel active">
+    <button class="scan-btn" onclick="openScanner()">📷 Scan QR Code</button>
+    <div class="card">
+      <label>PC IP Address (manual)</label>
+      <input type="text" id="ipInput" placeholder="192.168.1.42"
+             inputmode="decimal" autocomplete="off" autocorrect="off"/>
+      <div class="hint">Find the IP in the green box in the server window on your PC</div>
+    </div>
+    <div id="connectError">Could not connect — check IP and server</div>
+    <button class="primary-btn wifi-btn" onclick="startConnect('wifi')">Connect via WiFi →</button>
+    <p class="tip">📡 Phone and PC must be on the same WiFi network</p>
+  </div>
+
+  <!-- USB panel -->
+  <div id="usbPanel" class="panel">
+    <div class="info-box">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="step-text">Connect your phone to the PC with a <strong style="color:var(--text)">USB cable</strong></div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="step-text">Enable <strong style="color:var(--text)">USB Debugging</strong> on your phone — Settings → Developer Options → USB Debugging</div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="step-text">Open the server on your PC and click the <strong style="color:var(--usb)">🔌 Setup USB</strong> button — it sets everything up automatically</div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="step-text">Tap Connect below</div>
+      </div>
+    </div>
+    <button class="primary-btn usb-btn" onclick="startConnect('usb')">🔌 Connect via USB</button>
+    <p class="tip">⚡ Fastest connection — no network needed</p>
+  </div>
+
+  <!-- Hotspot panel -->
+  <div id="hotPanel" class="panel">
+    <div class="info-box">
+      <div class="step">
+        <div class="num green">1</div>
+        <div class="step-text">Turn on <strong style="color:var(--text)">Mobile Hotspot</strong> on your phone (Settings → Hotspot)</div>
+      </div>
+      <div class="step">
+        <div class="num green">2</div>
+        <div class="step-text">Connect your <strong style="color:var(--text)">PC to your phone's hotspot</strong> WiFi network</div>
+      </div>
+      <div class="step">
+        <div class="num green">3</div>
+        <div class="step-text">Run <strong style="color:var(--text)">PC Controller.exe</strong> on your PC — it will show a new IP address</div>
+      </div>
+      <div class="step">
+        <div class="num green">4</div>
+        <div class="step-text">Enter that IP below or scan the QR code</div>
+      </div>
+    </div>
+    <button class="scan-btn" onclick="openScanner()" style="border-color:var(--hot);color:var(--hot);">📷 Scan QR Code</button>
+    <div class="card">
+      <label>PC IP Address</label>
+      <input type="text" id="hotIpInput" placeholder="192.168.43.x"
+             inputmode="decimal" autocomplete="off" autocorrect="off"/>
+      <div class="hint">Hotspot IPs usually start with 192.168.43.</div>
+    </div>
+    <button class="primary-btn hot-btn" onclick="startConnect('hot')">📶 Connect via Hotspot</button>
+  </div>
+</div>
+
+<!-- ── QR SCANNER ── -->
+<div id="scanScreen">
+  <div class="scan-header">
+    <h2>📷 Scan QR Code</h2>
+    <button class="scan-close" onclick="closeScanner()">✕ Close</button>
+  </div>
+  <div id="qr-reader"></div>
+  <div class="scan-hint">Point at the QR code shown in the server window on your PC</div>
+</div>
+
+<!-- ── PIN SCREEN ── -->
+<div id="pinScreen" style="display:none;height:100%;">
+  <div style="display:flex;flex-direction:column;align-items:center;
+              justify-content:center;height:100%;padding:32px;background:var(--bg);">
+    <div style="font-size:48px;margin-bottom:16px;">🔐</div>
+    <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">Enter PIN</h2>
+    <p style="color:var(--muted);font-size:14px;text-align:center;margin-bottom:28px;line-height:1.5;">
+      Enter the 6-digit PIN shown in the server window on your PC
+    </p>
+    <div style="width:100%;background:var(--panel);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <input type="tel" id="pinInput" maxlength="6" placeholder="000000"
+             style="width:100%;background:var(--btn);border:none;border-radius:10px;
+                    padding:16px;font-size:28px;color:var(--text);text-align:center;
+                    letter-spacing:8px;outline:none;"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
+             autocomplete="off"/>
+    </div>
+    <div id="pinError" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;">
+      Wrong PIN — check the server window
+    </div>
+    <button onclick="submitPin()"
+            style="width:100%;background:var(--accent);border:none;border-radius:14px;
+                   padding:16px;font-size:16px;font-weight:800;color:#fff;margin-bottom:12px;">
+      Verify PIN
+    </button>
+    <button onclick="disconnect()"
+            style="background:none;border:none;color:var(--muted);font-size:13px;">
+      Back
+    </button>
+  </div>
+</div>
+
+<!-- ── CONTROLLER ── -->
+<div id="controllerScreen" style="height:100%;">
+  <div class="wrap">
+    <div class="header">
+      <button class="disc-btn" onclick="disconnect()">✕ Disconnect</button>
+      <div class="status-pill">
+        <div class="dot" id="dot"></div>
+        <span id="statText">Connecting…</span>
+        <span class="conn-badge" id="connBadge"></span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <span class="slider-label">SPEED</span>
+      <input type="range" min="0.5" max="5.0" step="0.1" value="1.5" oninput="setSpeed(this.value)">
+    </div>
+    <div class="media-row">
+      <button class="icon-btn" onclick="sendKey('vol_down')">Vol -</button>
+      <button class="icon-btn" onclick="sendKey('mute')">Mute</button>
+      <button class="icon-btn" onclick="sendKey('vol_up')">Vol +</button>
+    </div>
+    <div class="media-row">
+      <button class="icon-btn" onclick="sendKey('prev')">⏮</button>
+      <button class="icon-btn" onclick="sendKey('play')">⏯</button>
+      <button class="icon-btn" onclick="sendKey('next')">⏭</button>
+    </div>
+    <div id="touchpad">
+      <div class="pad-hint">
+        <p>TRACKPAD</p>
+        <p>tap · drag · 2-finger scroll</p>
+      </div>
+    </div>
+    <div class="mouse-row">
+      <button class="mouse-btn" ontouchstart="clickBtn('left',event)">L</button>
+      <button class="mouse-btn" id="dragBtn" onclick="toggleDrag()">🔓 Drag</button>
+      <button class="mouse-btn" ontouchstart="clickBtn('right',event)">R</button>
+    </div>
+    <div class="mouse-row">
+      <button class="mouse-btn" id="ctrlBtn" onclick="toggleMod('ctrl',this)">Ctrl</button>
+      <button class="mouse-btn" id="altBtn"  onclick="toggleMod('alt',this)">Alt</button>
+      <button class="mouse-btn" onclick="sendKey('win')">⊞ Win</button>
+    </div>
+    <div class="tool-grid">
+      <button class="tool-btn primary" onclick="openKeyboard()">⌨ Type</button>
+      <button class="tool-btn" onclick="sendKey('ENTER')">Enter</button>
+      <button class="tool-btn" onclick="sendKey('BACKSPACE')">⌫ Back</button>
+      <button class="tool-btn" onclick="sendKey('ESC')">Esc</button>
+    </div>
+  </div>
+</div>
+
+<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off"
+       autocapitalize="none" spellcheck="false"/>
+
+<script>
+// ── State ──
+let ws = null, reconnectTimer = null;
+let currentIp = '';
+let isDragging = false;
+let connMode = 'wifi';
+
+// ── Mode switch ──
+function switchMode(mode) {
+  connMode = mode;
+  ['wifi','usb','hot'].forEach(m => {
+    document.getElementById(m==='wifi'?'wifiPanel':m==='usb'?'usbPanel':'hotPanel')
+      .classList.toggle('active', m===mode);
+    const tab = document.getElementById('tab'+m.charAt(0).toUpperCase()+m.slice(1));
+    tab.className = 'mode-tab' + (m===mode ? ' active-'+mode : '');
+  });
+}
+
+// ── QR Scanner ──
+let html5QrCode = null;
+let scannerRunning = false;
+let scanTarget = 'wifi'; // which input to fill after scan
+
+function openScanner() {
+  scanTarget = connMode;
+  _startScanner();
+}
+
+async function _startScanner() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    stream.getTracks().forEach(t => t.stop());
+  } catch {
+    alert('Camera permission denied.\nGo to Settings → Apps → PC Controller → Permissions → Camera → Allow.');
+    return;
+  }
+
+  document.getElementById('connectScreen').style.display = 'none';
+  document.getElementById('scanScreen').style.display   = 'flex';
+  await new Promise(r => setTimeout(r, 200));
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decoded) => {
+        try {
+          const url = new URL(decoded);
+          const ip  = url.hostname;
+          if (!ip) return;
+          closeScanner();
+          if (scanTarget === 'hot') {
+            document.getElementById('hotIpInput').value = ip;
+          } else {
+            document.getElementById('ipInput').value = ip;
+          }
+          currentIp = ip;
+          localStorage.setItem('lastIp', ip);
+          _goToController(scanTarget);
+        } catch {}
+      },
+      () => {}
+    );
+    scannerRunning = true;
+  } catch (err) {
+    scannerRunning = false;
+    closeScanner();
+    alert('Could not start camera: ' + err);
+  }
+}
+
+function closeScanner() {
+  const hide = () => {
+    scannerRunning = false;
+    html5QrCode = null;
+    document.getElementById('scanScreen').style.display    = 'none';
+    document.getElementById('connectScreen').style.display = 'flex';
+  };
+  if (html5QrCode && scannerRunning) {
+    html5QrCode.stop().then(hide).catch(hide);
+  } else {
+    hide();
+  }
+}
+
+// ── Connect ──
+function startConnect(mode) {
+  let ip = '';
+  if (mode === 'usb') {
+    ip = '127.0.0.1';
+  } else if (mode === 'hot') {
+    ip = document.getElementById('hotIpInput').value.trim();
+    if (!ip) { alert('Enter the PC IP address from the server window'); return; }
+  } else {
+    ip = document.getElementById('ipInput').value.trim();
+    if (!ip) { alert('Enter the PC IP address'); return; }
+  }
+  currentIp = ip;
+  if (mode !== 'usb') localStorage.setItem('lastIp', ip);
+  _goToController(mode);
+}
+
+function _goToController(mode) {
+  connMode = mode;
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+  const badge = document.getElementById('connBadge');
+  badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
+  badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
+  // Hide connect, show controller screen immediately (shows Connecting... status)
+  document.getElementById('connectScreen').style.display    = 'none';
+  document.getElementById('controllerScreen').style.display = 'flex';
+  setStatus('Connecting…', false);
+  connectWs();
+}
+
+function connectWs() {
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  clearTimeout(reconnectTimer);
+  // Try encrypted WSS first (port 8443), fall back to WS (port 8080)
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const port  = 8080;
+  ws = new WebSocket(`ws://${currentIp}:${port}/ws`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({command: 'ping'}));
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.status === 'auth_ok') {
+        // Success — go to controller
+        document.getElementById('pinScreen').style.display        = 'none';
+        document.getElementById('controllerScreen').style.display = 'flex';
+        setStatus('Connected', true);
+      } else if (msg.status === 'auth_fail') {
+        // Wrong PIN — show error, keep connection open for retry
+        document.getElementById('pinError').style.display = 'block';
+        document.getElementById('pinInput').value = '';
+        document.getElementById('pinInput').focus();
+      } else if (msg.status === 'auth_required') {
+        // PIN enabled — swap to PIN entry screen
+        document.getElementById('controllerScreen').style.display = 'none';
+        document.getElementById('pinScreen').style.display        = 'flex';
+        setTimeout(() => document.getElementById('pinInput').focus(), 150);
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    // Only auto-reconnect if actively using controller
+    if (document.getElementById('controllerScreen').style.display === 'flex') {
+      setStatus('Reconnecting…', false);
+      reconnectTimer = setTimeout(connectWs, 2000);
+    }
+  };
+
+  ws.onerror = () => {
+    setStatus('Error — check IP', false);
+  };
+}
+
+function submitPin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  if (pin.length !== 6) {
+    document.getElementById('pinInput').focus();
+    return;
+  }
+  document.getElementById('pinError').style.display = 'none';
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({command: 'auth', pin: pin}));
+  } else {
+    // Connection dropped — reconnect then retry
+    connectWs();
+    setTimeout(submitPin, 1000);
+  }
+}
+
+function disconnect() {
+  clearTimeout(reconnectTimer);
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  if (isDragging) toggleDrag();
+  document.getElementById('controllerScreen').style.display = 'none';
+  document.getElementById('pinScreen').style.display        = 'none';
+  document.getElementById('connectScreen').style.display    = 'flex';
+}
+
+function show(id) {
+  ['connectScreen','pinScreen','controllerScreen'].forEach(s =>
+    document.getElementById(s).style.display = s === id ? (s === 'connectScreen' ? 'flex' : 'flex') : 'none'
+  );
+}
+
+function setStatus(text, ok) {
+  document.getElementById('statText').textContent = text;
+  document.getElementById('dot').className = 'dot' + (ok ? ' ok' : '');
+}
+
+// ── Send ──
+function send(data) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(data)); }
+function vibrate()  { if (navigator.vibrate) navigator.vibrate(15); }
+function setSpeed(v){ send({command:'set_speed', value:v}); }
+function sendKey(k) { vibrate(); send({command:'key', key:k}); }
+function clickBtn(btn, e) { if(e) e.preventDefault(); vibrate(); send({command:'click', button:btn}); }
+
+// ── Drag ──
+function toggleDrag() {
+  isDragging = !isDragging;
+  const btn = document.getElementById('dragBtn');
+  btn.classList.toggle('active', isDragging);
+  btn.textContent = isDragging ? '🔒 Dragging' : '🔓 Drag';
+  if (navigator.vibrate) navigator.vibrate(isDragging ? [50] : [20]);
+  send({command: isDragging ? 'drag_start' : 'drag_end'});
+}
+
+// ── Modifier keys ──
+function toggleMod(key, btn) {
+  const active = btn.classList.toggle('active');
+  if (navigator.vibrate) navigator.vibrate(active ? 50 : 20);
+  send({command:'key_toggle', key, state: active ? 'down' : 'up'});
+}
+
+// ── Touchpad ──
+const pad = document.getElementById('touchpad');
+let lastX=0, lastY=0, touchStartT=0, isScroll=false;
+
+pad.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length===1) {
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    touchStartT=Date.now(); isScroll=false;
+  } else if (e.touches.length===2) {
+    isScroll=true; lastY=e.touches[0].clientY;
+  }
+}, {passive:false});
+
+pad.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (isScroll && e.touches.length===2) {
+    const cy=e.touches[0].clientY;
+    send({command:'scroll', dy:cy-lastY}); lastY=cy;
+  } else if (e.touches.length===1) {
+    const cx=e.touches[0].clientX, cy=e.touches[0].clientY;
+    send({command:'move', dx:cx-lastX, dy:cy-lastY});
+    lastX=cx; lastY=cy;
+  }
+}, {passive:false});
+
+pad.addEventListener('touchend', e => {
+  if (!isScroll && e.changedTouches.length===1 && (Date.now()-touchStartT<150))
+    clickBtn('left');
+});
+
+// ── Keyboard ──
+const SPACER = ' ';
+const hiddenInput = document.getElementById('hiddenInput');
+function openKeyboard() { hiddenInput.value=SPACER; hiddenInput.focus(); }
+hiddenInput.addEventListener('input', e => {
+  if (e.data) { send({command:'type', text:e.data}); }
+  else if (e.inputType==='deleteContentBackward') { sendKey('BACKSPACE'); }
+  else if (hiddenInput.value.length===0) { sendKey('BACKSPACE'); }
+  hiddenInput.value = SPACER;
+});
+hiddenInput.addEventListener('keyup', e => { if(e.key==='Enter') sendKey('ENTER'); });
+
+// ── Init ──
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('lastIp');
+  if (saved) {
+    document.getElementById('ipInput').value = saved;
+    document.getElementById('hotIpInput').value = saved;
+  }
+});
+</script>
+</body>
+</html>
