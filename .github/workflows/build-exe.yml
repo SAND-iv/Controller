@@ -23,6 +23,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install aiohttp pynput pyautogui pillow qrcode pyinstaller
 
+      - name: Create admin manifest
+        run: |
+          @"
+          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+          <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+            <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+              <security>
+                <requestedPrivileges>
+                  <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+                </requestedPrivileges>
+              </security>
+            </trustInfo>
+          </assembly>
+          "@ | Out-File -FilePath admin.manifest -Encoding UTF8
+
       - name: Build EXE
         run: |
           pyinstaller `
@@ -31,6 +46,7 @@ jobs:
             --windowed `
             --name "PC Controller" `
             --add-data "controller.html;." `
+            --manifest admin.manifest `
             --hidden-import aiohttp `
             --hidden-import aiohttp.web `
             --hidden-import aiohttp.web_runner `
