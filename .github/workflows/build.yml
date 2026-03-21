@@ -40,11 +40,21 @@ jobs:
         working-directory: ./ControllerApp2
         run: |
           mkdir -p resources
-          cp icon.png resources/icon.png
+          if [ -f "icon.png" ]; then
+            cp icon.png resources/icon.png
+            echo "Icon copied successfully"
+          else
+            echo "No icon.png found, skipping"
+          fi
 
       - name: Generate icons
         working-directory: ./ControllerApp2
-        run: npx capacitor-assets generate --android || true
+        run: |
+          if [ -f "resources/icon.png" ]; then
+            npx capacitor-assets generate --android || true
+          else
+            echo "Skipping icon generation — no icon found"
+          fi
 
       - name: Sync Capacitor
         working-directory: ./ControllerApp2
