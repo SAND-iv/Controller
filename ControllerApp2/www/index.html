@@ -238,7 +238,7 @@
              style="width:100%;background:var(--btn);border:none;border-radius:10px;
                     padding:16px;font-size:28px;color:var(--text);text-align:center;
                     letter-spacing:8px;outline:none;"
-             oninput="if(this.value.length===6) submitPin()"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
              autocomplete="off"/>
     </div>
     <div id="pinError" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;">
@@ -412,19 +412,14 @@ function startConnect(mode) {
   _goToController(mode);
 }
 
-// Stores pending PIN to send once WS opens
-let pendingPin = null;
-
 function _goToController(mode) {
   connMode = mode;
-  pendingPin = null;
   document.getElementById('pinError').style.display = 'none';
   document.getElementById('pinInput').value = '';
   const badge = document.getElementById('connBadge');
   badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
   badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
   document.getElementById('connectScreen').style.display = 'none';
-  setStatus('Connecting…', false);
   connectWs();
 }
 
@@ -434,64 +429,62 @@ function connectWs() {
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
 
   ws.onopen = () => {
-    // Send ping — server replies auth_ok (no PIN) or auth_required (PIN enabled)
     ws.send(JSON.stringify({command: 'ping'}));
-    // If user already submitted a PIN while connecting, send it now
-    if (pendingPin) {
-      setTimeout(() => {
-        if (ws && ws.readyState === 1) {
-          ws.send(JSON.stringify({command: 'auth', pin: pendingPin}));
-          pendingPin = null;
-        }
-      }, 200);
-    }
   };
 
   ws.onmessage = (e) => {
     try {
-      const data = JSON.parse(e.data);
-      if (data.status === 'auth_ok') {
+      const msg = JSON.parse(e.data);
+      if (msg.status === 'auth_ok') {
+        // Success — go to controller
         document.getElementById('pinScreen').style.display        = 'none';
         document.getElementById('controllerScreen').style.display = 'flex';
         setStatus('Connected', true);
-      } else if (data.status === 'auth_fail') {
+      } else if (msg.status === 'auth_fail') {
+        // Wrong PIN — show error, keep connection open for retry
         document.getElementById('pinError').style.display = 'block';
         document.getElementById('pinInput').value = '';
-        setTimeout(() => document.getElementById('pinInput').focus(), 100);
-        pendingPin = null;
-      } else if (data.status === 'auth_required') {
+        document.getElementById('pinInput').focus();
+      } else if (msg.status === 'auth_required') {
+        // PIN enabled — show PIN entry screen
         document.getElementById('pinScreen').style.display = 'flex';
         setStatus('Enter PIN…', false);
-        setTimeout(() => document.getElementById('pinInput').focus(), 100);
+        setTimeout(() => document.getElementById('pinInput').focus(), 150);
       }
     } catch {}
   };
 
   ws.onclose = () => {
+    // Only auto-reconnect if actively using controller
     if (document.getElementById('controllerScreen').style.display === 'flex') {
       setStatus('Reconnecting…', false);
       reconnectTimer = setTimeout(connectWs, 2000);
     }
   };
-  ws.onerror = () => setStatus('Error', false);
+
+  ws.onerror = () => {
+    setStatus('Error — check IP', false);
+  };
 }
 
 function submitPin() {
   const pin = document.getElementById('pinInput').value.trim();
-  if (pin.length !== 6) return;
+  if (pin.length !== 6) {
+    document.getElementById('pinInput').focus();
+    return;
+  }
   document.getElementById('pinError').style.display = 'none';
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({command: 'auth', pin: pin}));
   } else {
-    // WS not ready yet — store PIN and send when open
-    pendingPin = pin;
-    if (!ws || ws.readyState === 3) connectWs();
+    // Connection dropped — reconnect then retry
+    connectWs();
+    setTimeout(submitPin, 1000);
   }
 }
 
 function disconnect() {
   clearTimeout(reconnectTimer);
-  pendingPin = null;
   if (ws) { ws.onclose = null; ws.close(); ws = null; }
   if (isDragging) toggleDrag();
   document.getElementById('controllerScreen').style.display = 'none';

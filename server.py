@@ -229,8 +229,7 @@ async def websocket_handler(request):
                         else:
                             await ws.send_str(json.dumps({"status": "auth_fail"}))
                             log.warning(f"Wrong PIN from {request.remote}")
-                            await ws.close()
-                            return ws
+                            # Don't close — let user retry
                     else:
                         await ws.send_str(json.dumps({"status": "auth_required"}))
                     continue
