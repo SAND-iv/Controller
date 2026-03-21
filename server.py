@@ -417,14 +417,7 @@ class ServerGUI:
                   text="Share this PIN with whoever needs to connect",
                   font=("Segoe UI", 9), foreground="#888").pack(anchor="w")
 
-        # Connection status
-        status_frm = ttk.LabelFrame(frm, text="Connection Status", padding=10)
-        status_frm.pack(fill="x", pady=(0,8))
-        self.conn_var = tk.StringVar(value="⚪ No device connected")
-        ttk.Label(status_frm, textvariable=self.conn_var,
-                  font=("Segoe UI", 10)).pack(anchor="w")
-        ttk.Button(status_frm, text="⛔ Kick Device",
-                   command=self._kick).pack(anchor="e")
+
 
         # IP
         ip_frm = ttk.LabelFrame(frm, text="WiFi / Hotspot IP", padding=10)
@@ -499,10 +492,6 @@ class ServerGUI:
             asyncio.run_coroutine_threadsafe(ws.close(), self._loop)
             self.conn_var.set("⚪ No device connected")
 
-    def _update_conn_status(self, connected: bool):
-        self.root.after(0, lambda: self.conn_var.set(
-            "🟢 Device connected" if connected else "⚪ No device connected"
-        ))
 
     def _do_usb(self):
         self.usb_btn.config(state="disabled")
