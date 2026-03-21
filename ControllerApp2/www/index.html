@@ -135,7 +135,7 @@
 <body>
 
 <!-- ── CONNECT SCREEN ── -->
-<div id="connectScreen">
+<div id="connectScreen" style="height:100%;">
   <h1>PC Controller</h1>
   <p class="sub">Choose how to connect to your PC</p>
 
@@ -225,7 +225,7 @@
 </div>
 
 <!-- ── PIN SCREEN ── -->
-<div id="pinScreen" style="display:none;">
+<div id="pinScreen" style="display:none;height:100%;">
   <div style="display:flex;flex-direction:column;align-items:center;
               justify-content:center;height:100%;padding:32px;background:var(--bg);">
     <div style="font-size:48px;margin-bottom:16px;">🔐</div>
@@ -257,7 +257,7 @@
 </div>
 
 <!-- ── CONTROLLER ── -->
-<div id="controllerScreen">
+<div id="controllerScreen" style="height:100%;">
   <div class="wrap">
     <div class="header">
       <button class="disc-btn" onclick="disconnect()">✕ Disconnect</button>
@@ -419,14 +419,20 @@ function _goToController(mode) {
   const badge = document.getElementById('connBadge');
   badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
   badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
-  document.getElementById('connectScreen').style.display = 'none';
+  // Hide connect, show controller screen immediately (shows Connecting... status)
+  document.getElementById('connectScreen').style.display    = 'none';
+  document.getElementById('controllerScreen').style.display = 'flex';
+  setStatus('Connecting…', false);
   connectWs();
 }
 
 function connectWs() {
   if (ws) { ws.onclose = null; ws.close(); ws = null; }
   clearTimeout(reconnectTimer);
-  ws = new WebSocket(`ws://${currentIp}:8080/ws`);
+  // Try encrypted WSS first (port 8443), fall back to WS (port 8080)
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const port  = 8080;
+  ws = new WebSocket(`ws://${currentIp}:${port}/ws`);
 
   ws.onopen = () => {
     ws.send(JSON.stringify({command: 'ping'}));
@@ -446,9 +452,9 @@ function connectWs() {
         document.getElementById('pinInput').value = '';
         document.getElementById('pinInput').focus();
       } else if (msg.status === 'auth_required') {
-        // PIN enabled — show PIN entry screen
-        document.getElementById('pinScreen').style.display = 'flex';
-        setStatus('Enter PIN…', false);
+        // PIN enabled — swap to PIN entry screen
+        document.getElementById('controllerScreen').style.display = 'none';
+        document.getElementById('pinScreen').style.display        = 'flex';
         setTimeout(() => document.getElementById('pinInput').focus(), 150);
       }
     } catch {}
@@ -490,6 +496,12 @@ function disconnect() {
   document.getElementById('controllerScreen').style.display = 'none';
   document.getElementById('pinScreen').style.display        = 'none';
   document.getElementById('connectScreen').style.display    = 'flex';
+}
+
+function show(id) {
+  ['connectScreen','pinScreen','controllerScreen'].forEach(s =>
+    document.getElementById(s).style.display = s === id ? (s === 'connectScreen' ? 'flex' : 'flex') : 'none'
+  );
 }
 
 function setStatus(text, ok) {
