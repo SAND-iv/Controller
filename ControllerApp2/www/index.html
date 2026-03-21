@@ -412,51 +412,66 @@ function startConnect(mode) {
   _goToController(mode);
 }
 
+// Stores pending PIN to send once WS opens
+let pendingPin = null;
+
 function _goToController(mode) {
   connMode = mode;
-  // Show PIN screen first
-  document.getElementById('connectScreen').style.display = 'none';
-  document.getElementById('pinScreen').style.display     = 'flex';
-  document.getElementById('pinInput').value = '';
+  pendingPin = null;
   document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinInput').value = '';
   const badge = document.getElementById('connBadge');
   badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
   badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
+  document.getElementById('connectScreen').style.display = 'none';
+  setStatus('Connecting…', false);
   connectWs();
 }
 
 function connectWs() {
-  if (ws) { ws.close(); ws = null; }
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  clearTimeout(reconnectTimer);
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
+
   ws.onopen = () => {
-    setStatus('Connecting…', false);
-    // Send a dummy message to trigger server response
-    // Server will either auto-auth (no PIN) or request PIN
+    // Send ping — server replies auth_ok (no PIN) or auth_required (PIN enabled)
     ws.send(JSON.stringify({command: 'ping'}));
+    // If user already submitted a PIN while connecting, send it now
+    if (pendingPin) {
+      setTimeout(() => {
+        if (ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({command: 'auth', pin: pendingPin}));
+          pendingPin = null;
+        }
+      }, 200);
+    }
   };
+
   ws.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
       if (data.status === 'auth_ok') {
-        // Authenticated — go straight to controller
         document.getElementById('pinScreen').style.display        = 'none';
         document.getElementById('controllerScreen').style.display = 'flex';
         setStatus('Connected', true);
       } else if (data.status === 'auth_fail') {
         document.getElementById('pinError').style.display = 'block';
         document.getElementById('pinInput').value = '';
-        document.getElementById('pinInput').focus();
+        setTimeout(() => document.getElementById('pinInput').focus(), 100);
+        pendingPin = null;
       } else if (data.status === 'auth_required') {
-        // Server requires PIN — show PIN screen
         document.getElementById('pinScreen').style.display = 'flex';
         setStatus('Enter PIN…', false);
         setTimeout(() => document.getElementById('pinInput').focus(), 100);
       }
     } catch {}
   };
+
   ws.onclose = () => {
-    setStatus('Reconnecting…', false);
-    reconnectTimer = setTimeout(connectWs, 2000);
+    if (document.getElementById('controllerScreen').style.display === 'flex') {
+      setStatus('Reconnecting…', false);
+      reconnectTimer = setTimeout(connectWs, 2000);
+    }
   };
   ws.onerror = () => setStatus('Error', false);
 }
@@ -465,18 +480,19 @@ function submitPin() {
   const pin = document.getElementById('pinInput').value.trim();
   if (pin.length !== 6) return;
   document.getElementById('pinError').style.display = 'none';
-  sendPin(pin);
-}
-
-function sendPin(pin) {
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({command: 'auth', pin: pin}));
+  } else {
+    // WS not ready yet — store PIN and send when open
+    pendingPin = pin;
+    if (!ws || ws.readyState === 3) connectWs();
   }
 }
 
 function disconnect() {
   clearTimeout(reconnectTimer);
-  if (ws) { ws.close(); ws = null; }
+  pendingPin = null;
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
   if (isDragging) toggleDrag();
   document.getElementById('controllerScreen').style.display = 'none';
   document.getElementById('pinScreen').style.display        = 'none';
