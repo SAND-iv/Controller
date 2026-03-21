@@ -258,40 +258,66 @@ function switchMode(mode) {
 
 // ── QR Scanner ──
 let html5QrCode = null;
+let scannerRunning = false;
 
-function openScanner() {
+async function openScanner() {
+  // Request camera permission first
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    stream.getTracks().forEach(t => t.stop()); // stop the test stream
+  } catch (err) {
+    alert('Camera permission denied.\nGo to Settings → Apps → PC Controller → Permissions → Allow Camera.');
+    return;
+  }
+
   document.getElementById('connectScreen').style.display = 'none';
   document.getElementById('scanScreen').style.display   = 'flex';
+
+  // Small delay to let DOM settle
+  await new Promise(r => setTimeout(r, 200));
+
   html5QrCode = new Html5Qrcode("qr-reader");
-  html5QrCode.start(
-    { facingMode:"environment" },
-    { fps:10, qrbox:{width:250,height:250} },
-    (decoded) => {
-      try {
-        const url = new URL(decoded);
-        const ip  = url.hostname;
-        if (!ip) return;
-        closeScanner();
-        document.getElementById('ipInput').value = ip;
-        currentIp = ip;
-        localStorage.setItem('lastIp', ip);
-        document.getElementById('connectScreen').style.display    = 'none';
-        document.getElementById('controllerScreen').style.display = 'flex';
-        document.getElementById('connBadge').textContent = 'WiFi';
-        connectWifi();
-      } catch {}
-    },
-    () => {}
-  ).catch(() => {
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decoded) => {
+        try {
+          const url = new URL(decoded);
+          const ip  = url.hostname;
+          if (!ip) return;
+          closeScanner();
+          document.getElementById('ipInput').value = ip;
+          currentIp = ip;
+          localStorage.setItem('lastIp', ip);
+          document.getElementById('connectScreen').style.display    = 'none';
+          document.getElementById('controllerScreen').style.display = 'flex';
+          document.getElementById('connBadge').textContent = 'WiFi';
+          connectWifi();
+        } catch {}
+      },
+      () => {}
+    );
+    scannerRunning = true;
+  } catch (err) {
+    scannerRunning = false;
     closeScanner();
-    alert('Camera permission denied.\nPlease allow camera access in your phone settings and try again.');
-  });
+    alert('Could not start camera: ' + err);
+  }
 }
 
 function closeScanner() {
-  if (html5QrCode) { html5QrCode.stop().catch(()=>{}); html5QrCode=null; }
-  document.getElementById('scanScreen').style.display   = 'none';
-  document.getElementById('connectScreen').style.display = 'flex';
+  const hide = () => {
+    scannerRunning = false;
+    html5QrCode = null;
+    document.getElementById('scanScreen').style.display    = 'none';
+    document.getElementById('connectScreen').style.display = 'flex';
+  };
+  if (html5QrCode && scannerRunning) {
+    html5QrCode.stop().then(hide).catch(hide);
+  } else {
+    hide();
+  }
 }
 
 // ── WiFi ──
