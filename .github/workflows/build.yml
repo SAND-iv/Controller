@@ -28,9 +28,23 @@ jobs:
         working-directory: ./ControllerApp2
         run: npm install
 
+      - name: Install Capacitor assets tool
+        working-directory: ./ControllerApp2
+        run: npm install -D @capacitor/assets
+
       - name: Add Android platform
         working-directory: ./ControllerApp2
         run: npx cap add android || true
+
+      - name: Copy icon into resources
+        working-directory: ./ControllerApp2
+        run: |
+          mkdir -p resources
+          cp icon.png resources/icon.png
+
+      - name: Generate icons
+        working-directory: ./ControllerApp2
+        run: npx capacitor-assets generate --android || true
 
       - name: Sync Capacitor
         working-directory: ./ControllerApp2

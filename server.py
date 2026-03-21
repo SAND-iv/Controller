@@ -71,9 +71,11 @@ def release_key(k): keyboard.release(keymap.get(k, k))
 security = {
     "pin":          None,
     "pin_hash":     None,
-    "pin_enabled":  False,      # PIN is optional
+    "pin_enabled":  False,
     "active_ws":    None,
     "lock":         threading.Lock(),
+    "on_connect":   None,   # GUI callback
+    "on_disconnect": None,
 }
 
 def generate_pin():
@@ -226,6 +228,7 @@ async def websocket_handler(request):
                                 security["active_ws"] = ws
                             await ws.send_str(json.dumps({"status": "auth_ok"}))
                             log.info("Client authenticated successfully")
+                            if security["on_connect"]: security["on_connect"]()
                         else:
                             await ws.send_str(json.dumps({"status": "auth_fail"}))
                             log.warning(f"Wrong PIN from {request.remote}")
@@ -242,6 +245,7 @@ async def websocket_handler(request):
         with security["lock"]:
             if security["active_ws"] is ws:
                 security["active_ws"] = None
+                if security["on_disconnect"]: security["on_disconnect"]()
         log.info("Client disconnected")
 
     return ws
@@ -527,6 +531,9 @@ class ServerGUI:
 
     def _start_server(self):
         ensure_firewall_rule()
+        # Wire up connection status callbacks
+        security["on_connect"]    = lambda: self.root.after(0, lambda: self.conn_var.set("🟢 Device connected"))
+        security["on_disconnect"] = lambda: self.root.after(0, lambda: self.conn_var.set("⚪ No device connected"))
         self._loop = asyncio.new_event_loop()
         threading.Thread(target=start_server,
                          args=(self._loop, self.ssl_ctx), daemon=True).start()
