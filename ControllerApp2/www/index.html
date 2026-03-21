@@ -10,7 +10,7 @@
   :root {
     --bg:#0f1113; --panel:#1a1c1e; --btn:#2a2d30;
     --accent:#3b82f6; --text:#e2e8f0; --muted:#94a3b8;
-    --active:#22c55e; --red:#ef4444; --ble:#8b5cf6;
+    --active:#22c55e; --red:#ef4444; --usb:#f59e0b; --hot:#10b981;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;background:var(--bg);color:var(--text);
@@ -19,53 +19,55 @@
 
   /* ── CONNECT SCREEN ── */
   #connectScreen{display:flex;flex-direction:column;align-items:center;
-    justify-content:center;height:100%;padding:24px;}
-  #connectScreen h1{font-size:32px;font-weight:800;margin-bottom:6px;}
-  .sub{color:var(--muted);font-size:14px;text-align:center;
-    margin-bottom:24px;line-height:1.5;}
+    justify-content:center;height:100%;padding:20px;overflow-y:auto;}
+  #connectScreen h1{font-size:30px;font-weight:800;margin-bottom:4px;}
+  .sub{color:var(--muted);font-size:13px;text-align:center;
+    margin-bottom:18px;line-height:1.5;}
 
   /* Mode tabs */
   .mode-tabs{display:flex;width:100%;background:var(--panel);
-    border-radius:14px;padding:4px;margin-bottom:16px;gap:4px;}
-  .mode-tab{flex:1;padding:10px;border:none;border-radius:10px;
-    font-size:13px;font-weight:700;color:var(--muted);
+    border-radius:14px;padding:4px;margin-bottom:14px;gap:3px;}
+  .mode-tab{flex:1;padding:9px 4px;border:none;border-radius:10px;
+    font-size:11px;font-weight:700;color:var(--muted);
     background:transparent;cursor:pointer;transition:all .2s;}
   .mode-tab.active-wifi{background:var(--accent);color:#fff;}
-  .mode-tab.active-ble{background:var(--ble);color:#fff;}
+  .mode-tab.active-usb{background:var(--usb);color:#fff;}
+  .mode-tab.active-hot{background:var(--hot);color:#fff;}
 
-  /* WiFi panel */
-  #wifiPanel,#blePanel{width:100%;}
-  .card{width:100%;background:var(--panel);border-radius:16px;
-    padding:18px;margin-bottom:12px;border:1px solid #2a2d30;}
+  .panel{width:100%;display:none;}
+  .panel.active{display:block;}
+
+  .card{width:100%;background:var(--panel);border-radius:14px;
+    padding:16px;margin-bottom:10px;border:1px solid #2a2d30;}
   .card label{font-size:11px;color:var(--muted);font-weight:700;
     text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;}
   .card input{width:100%;background:var(--btn);border:none;border-radius:10px;
-    padding:13px;font-size:18px;color:var(--text);letter-spacing:1px;outline:none;}
-  .card .hint{font-size:12px;color:var(--muted);margin-top:8px;}
+    padding:12px;font-size:18px;color:var(--text);letter-spacing:1px;outline:none;}
+  .card .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
 
-  .primary-btn{width:100%;border:none;border-radius:14px;padding:16px;
+  .primary-btn{width:100%;border:none;border-radius:14px;padding:15px;
     font-size:15px;font-weight:800;color:#fff;cursor:pointer;margin-bottom:10px;}
   .wifi-btn{background:var(--accent);}
-  .ble-btn{background:var(--ble);}
+  .usb-btn{background:var(--usb);}
+  .hot-btn{background:var(--hot);}
   .primary-btn:disabled{opacity:0.4;}
 
   .scan-btn{width:100%;background:var(--panel);border:2px solid var(--accent);
-    border-radius:14px;padding:13px;font-size:14px;font-weight:700;
-    color:var(--accent);margin-bottom:12px;cursor:pointer;
+    border-radius:14px;padding:12px;font-size:13px;font-weight:700;
+    color:var(--accent);margin-bottom:10px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:8px;}
-  .scan-btn:active{background:#1e2a3a;}
 
-  /* BLE status */
-  .ble-status-box{background:var(--panel);border-radius:12px;padding:14px;
-    margin-bottom:12px;border:1px solid #333;}
-  .ble-status-row{display:flex;align-items:center;gap:10px;}
-  .ble-dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;}
-  .ble-dot.scanning{background:#eab308;animation:pulse 1s infinite;}
-  .ble-dot.connected{background:var(--active);}
-  .ble-dot.error{background:var(--red);}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-  .ble-status-text{font-size:13px;color:var(--muted);}
-  .ble-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .info-box{background:var(--panel);border-radius:12px;padding:14px;
+    margin-bottom:10px;border:1px solid #333;}
+  .info-box .step{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;}
+  .info-box .step:last-child{margin-bottom:0;}
+  .info-box .num{background:var(--usb);color:#fff;border-radius:50%;
+    width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px;}
+  .info-box .num.green{background:var(--hot);}
+  .info-box .step-text{font-size:12px;color:var(--muted);line-height:1.5;}
+  .info-box code{background:var(--btn);padding:2px 6px;border-radius:4px;
+    font-size:11px;color:var(--text);}
 
   .tip{color:var(--muted);font-size:12px;text-align:center;line-height:1.6;}
   #connectError{color:var(--red);font-size:13px;text-align:center;
@@ -76,8 +78,8 @@
   .scan-header{display:flex;align-items:center;justify-content:space-between;
     padding:48px 20px 14px;background:var(--bg);}
   .scan-header h2{font-size:17px;font-weight:700;}
-  .scan-close{background:none;border:none;color:var(--muted);font-size:22px;
-    padding:4px 10px;cursor:pointer;}
+  .scan-close{background:var(--btn);border:none;color:var(--text);font-size:15px;
+    padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:600;}
   #qr-reader{width:100%!important;flex:1;border:none!important;}
   #qr-reader video{width:100%!important;height:100%!important;object-fit:cover!important;}
   #qr-reader img{display:none!important;}
@@ -94,7 +96,10 @@
   .dot{width:8px;height:8px;border-radius:50%;background:var(--red);}
   .dot.ok{background:var(--active);}
   .status-pill span{font-size:12px;font-weight:600;}
-  .conn-badge{font-size:10px;color:var(--muted);margin-left:2px;}
+  .conn-badge{font-size:10px;padding:2px 6px;border-radius:8px;margin-left:2px;font-weight:700;}
+  .badge-wifi{background:#1d4ed8;color:#fff;}
+  .badge-usb{background:#b45309;color:#fff;}
+  .badge-hot{background:#065f46;color:#fff;}
 
   .slider-box{display:flex;align-items:center;background:var(--panel);
     padding:8px 12px;border-radius:12px;margin-bottom:10px;border:1px solid #333;}
@@ -132,40 +137,80 @@
 <!-- ── CONNECT SCREEN ── -->
 <div id="connectScreen">
   <h1>PC Controller</h1>
-  <p class="sub">Connect via WiFi or Bluetooth</p>
+  <p class="sub">Choose how to connect to your PC</p>
 
   <div class="mode-tabs">
     <button class="mode-tab active-wifi" id="tabWifi" onclick="switchMode('wifi')">📡 WiFi</button>
-    <button class="mode-tab" id="tabBle"  onclick="switchMode('ble')">🔵 Bluetooth</button>
+    <button class="mode-tab" id="tabUsb"  onclick="switchMode('usb')">🔌 USB</button>
+    <button class="mode-tab" id="tabHot"  onclick="switchMode('hot')">📶 Hotspot</button>
   </div>
 
   <!-- WiFi panel -->
-  <div id="wifiPanel">
+  <div id="wifiPanel" class="panel active">
     <button class="scan-btn" onclick="openScanner()">📷 Scan QR Code</button>
     <div class="card">
       <label>PC IP Address (manual)</label>
       <input type="text" id="ipInput" placeholder="192.168.1.42"
              inputmode="decimal" autocomplete="off" autocorrect="off"/>
-      <div class="hint">Find the IP in the green box in the server window</div>
+      <div class="hint">Find the IP in the green box in the server window on your PC</div>
     </div>
     <div id="connectError">Could not connect — check IP and server</div>
-    <button class="primary-btn wifi-btn" onclick="startWifiConnect()">Connect via WiFi →</button>
+    <button class="primary-btn wifi-btn" onclick="startConnect('wifi')">Connect via WiFi →</button>
     <p class="tip">📡 Phone and PC must be on the same WiFi network</p>
   </div>
 
-  <!-- BLE panel -->
-  <div id="blePanel" style="display:none;">
-    <div class="ble-status-box">
-      <div class="ble-status-row">
-        <div class="ble-dot" id="bleDot"></div>
-        <span class="ble-status-text" id="bleStatusText">Ready to scan</span>
+  <!-- USB panel -->
+  <div id="usbPanel" class="panel">
+    <div class="info-box">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="step-text">Connect your phone to the PC with a USB cable</div>
       </div>
-      <div class="ble-note">Make sure Bluetooth is ON on both your phone and PC, and the server is running.</div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="step-text">Enable <strong style="color:var(--text)">USB Debugging</strong> on your phone (Settings → Developer Options)</div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="step-text">Run this command on your PC once:<br><code>adb reverse tcp:8080 tcp:8080</code></div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="step-text">Make sure <strong style="color:var(--text)">server.py</strong> is running on your PC, then tap Connect below</div>
+      </div>
     </div>
-    <button class="primary-btn ble-btn" id="bleScanBtn" onclick="startBle()">
-      🔵 Scan for PC Controller
-    </button>
-    <p class="tip">⚠️ BLE requires the server to be running on your PC<br>and Python 3.11 installed</p>
+    <button class="primary-btn usb-btn" onclick="startConnect('usb')">🔌 Connect via USB</button>
+    <p class="tip">Fastest connection — no network needed</p>
+  </div>
+
+  <!-- Hotspot panel -->
+  <div id="hotPanel" class="panel">
+    <div class="info-box">
+      <div class="step">
+        <div class="num green">1</div>
+        <div class="step-text">Turn on <strong style="color:var(--text)">Mobile Hotspot</strong> on your phone (Settings → Hotspot)</div>
+      </div>
+      <div class="step">
+        <div class="num green">2</div>
+        <div class="step-text">Connect your <strong style="color:var(--text)">PC to your phone's hotspot</strong> WiFi network</div>
+      </div>
+      <div class="step">
+        <div class="num green">3</div>
+        <div class="step-text">Run <strong style="color:var(--text)">server.py</strong> on your PC — it will show a new IP address</div>
+      </div>
+      <div class="step">
+        <div class="num green">4</div>
+        <div class="step-text">Enter that IP below or scan the QR code</div>
+      </div>
+    </div>
+    <button class="scan-btn" onclick="openScanner()" style="border-color:var(--hot);color:var(--hot);">📷 Scan QR Code</button>
+    <div class="card">
+      <label>PC IP Address</label>
+      <input type="text" id="hotIpInput" placeholder="192.168.43.x"
+             inputmode="decimal" autocomplete="off" autocorrect="off"/>
+      <div class="hint">Hotspot IPs usually start with 192.168.43.</div>
+    </div>
+    <button class="primary-btn hot-btn" onclick="startConnect('hot')">📶 Connect via Hotspot</button>
   </div>
 </div>
 
@@ -173,7 +218,7 @@
 <div id="scanScreen">
   <div class="scan-header">
     <h2>📷 Scan QR Code</h2>
-    <button class="scan-close" onclick="closeScanner()">✕</button>
+    <button class="scan-close" onclick="closeScanner()">✕ Close</button>
   </div>
   <div id="qr-reader"></div>
   <div class="scan-hint">Point at the QR code shown in the server window on your PC</div>
@@ -233,47 +278,44 @@
        autocapitalize="none" spellcheck="false"/>
 
 <script>
-// ── BLE constants (must match server.py) ──
-const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
-const CHAR_UUID    = '12345678-1234-5678-1234-56789abcdef1';
-const DEVICE_NAME  = 'PC Controller';
-const CHUNK_SIZE   = 18; // bytes per BLE write payload
-
 // ── State ──
 let ws = null, reconnectTimer = null;
 let currentIp = '';
 let isDragging = false;
-let connMode = 'wifi'; // 'wifi' | 'ble'
-let bleDeviceId = null;
-let BLE = null;
+let connMode = 'wifi';
 
 // ── Mode switch ──
 function switchMode(mode) {
   connMode = mode;
-  document.getElementById('wifiPanel').style.display = mode==='wifi' ? 'block' : 'none';
-  document.getElementById('blePanel').style.display  = mode==='ble'  ? 'block' : 'none';
-  document.getElementById('tabWifi').className = 'mode-tab' + (mode==='wifi' ? ' active-wifi' : '');
-  document.getElementById('tabBle').className  = 'mode-tab' + (mode==='ble'  ? ' active-ble'  : '');
+  ['wifi','usb','hot'].forEach(m => {
+    document.getElementById(m==='wifi'?'wifiPanel':m==='usb'?'usbPanel':'hotPanel')
+      .classList.toggle('active', m===mode);
+    const tab = document.getElementById('tab'+m.charAt(0).toUpperCase()+m.slice(1));
+    tab.className = 'mode-tab' + (m===mode ? ' active-'+mode : '');
+  });
 }
 
 // ── QR Scanner ──
 let html5QrCode = null;
 let scannerRunning = false;
+let scanTarget = 'wifi'; // which input to fill after scan
 
-async function openScanner() {
-  // Request camera permission first
+function openScanner() {
+  scanTarget = connMode;
+  _startScanner();
+}
+
+async function _startScanner() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    stream.getTracks().forEach(t => t.stop()); // stop the test stream
-  } catch (err) {
-    alert('Camera permission denied.\nGo to Settings → Apps → PC Controller → Permissions → Allow Camera.');
+    stream.getTracks().forEach(t => t.stop());
+  } catch {
+    alert('Camera permission denied.\nGo to Settings → Apps → PC Controller → Permissions → Camera → Allow.');
     return;
   }
 
   document.getElementById('connectScreen').style.display = 'none';
   document.getElementById('scanScreen').style.display   = 'flex';
-
-  // Small delay to let DOM settle
   await new Promise(r => setTimeout(r, 200));
 
   html5QrCode = new Html5Qrcode("qr-reader");
@@ -287,13 +329,14 @@ async function openScanner() {
           const ip  = url.hostname;
           if (!ip) return;
           closeScanner();
-          document.getElementById('ipInput').value = ip;
+          if (scanTarget === 'hot') {
+            document.getElementById('hotIpInput').value = ip;
+          } else {
+            document.getElementById('ipInput').value = ip;
+          }
           currentIp = ip;
           localStorage.setItem('lastIp', ip);
-          document.getElementById('connectScreen').style.display    = 'none';
-          document.getElementById('controllerScreen').style.display = 'flex';
-          document.getElementById('connBadge').textContent = 'WiFi';
-          connectWifi();
+          _goToController(scanTarget);
         } catch {}
       },
       () => {}
@@ -320,227 +363,131 @@ function closeScanner() {
   }
 }
 
-// ── WiFi ──
-function startWifiConnect() {
-  const ip = document.getElementById('ipInput').value.trim();
-  if (!ip) return;
+// ── Connect ──
+function startConnect(mode) {
+  let ip = '';
+  if (mode === 'usb') {
+    ip = '127.0.0.1';
+  } else if (mode === 'hot') {
+    ip = document.getElementById('hotIpInput').value.trim();
+    if (!ip) { alert('Enter the PC IP address from the server window'); return; }
+  } else {
+    ip = document.getElementById('ipInput').value.trim();
+    if (!ip) { alert('Enter the PC IP address'); return; }
+  }
   currentIp = ip;
-  localStorage.setItem('lastIp', ip);
-  document.getElementById('connectError').style.display    = 'none';
-  document.getElementById('connectScreen').style.display   = 'none';
-  document.getElementById('controllerScreen').style.display = 'flex';
-  document.getElementById('connBadge').textContent = 'WiFi';
-  connectWifi();
+  if (mode !== 'usb') localStorage.setItem('lastIp', ip);
+  _goToController(mode);
 }
 
-function connectWifi() {
-  if (ws) { ws.close(); ws=null; }
+function _goToController(mode) {
+  connMode = mode;
+  document.getElementById('connectScreen').style.display    = 'none';
+  document.getElementById('controllerScreen').style.display = 'flex';
+  const badge = document.getElementById('connBadge');
+  badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
+  badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
+  connectWs();
+}
+
+function connectWs() {
+  if (ws) { ws.close(); ws = null; }
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
   ws.onopen  = () => setStatus('Connected', true);
   ws.onclose = () => {
     setStatus('Reconnecting…', false);
-    reconnectTimer = setTimeout(connectWifi, 2000);
+    reconnectTimer = setTimeout(connectWs, 2000);
   };
   ws.onerror = () => setStatus('Error', false);
 }
 
-// ── BLE ──
-function setBleStatus(status) {
-  const dot  = document.getElementById('bleDot');
-  const text = document.getElementById('bleStatusText');
-  const btn  = document.getElementById('bleScanBtn');
-  const msgs = {
-    idle:       'Ready to scan',
-    scanning:   'Scanning for PC Controller…',
-    connecting: 'Connecting…',
-    connected:  'Connected!',
-    not_found:  'Device not found — is the server running?',
-    error:      'Connection failed — try again',
-  };
-  dot.className  = 'ble-dot ' + (status==='connected'?'connected':status==='scanning'||status==='connecting'?'scanning':'');
-  if (status==='error'||status==='not_found') dot.className='ble-dot error';
-  text.textContent = msgs[status] || status;
-  btn.disabled = status==='scanning'||status==='connecting';
-  btn.textContent = status==='scanning' ? '🔵 Scanning…' : '🔵 Scan for PC Controller';
-}
-
-async function startBle() {
-  BLE = window.Capacitor?.Plugins?.BluetoothLe;
-  if (!BLE) {
-    alert('Bluetooth is not available on this device or browser.');
-    return;
-  }
-
-  try {
-    setBleStatus('scanning');
-    await BLE.initialize();
-
-    // Request permissions on Android
-    const perm = await BLE.requestPermissions();
-    if (perm?.bluetoothScan !== 'granted' || perm?.bluetoothConnect !== 'granted') {
-      setBleStatus('error');
-      alert('Bluetooth permission denied. Please allow Bluetooth access in settings.');
-      return;
-    }
-
-    // Scan for device
-    const scanResult = await new Promise((resolve, reject) => {
-      let found = false;
-      const timeout = setTimeout(async () => {
-        if (!found) {
-          await BLE.stopLeScan().catch(()=>{});
-          reject(new Error('not_found'));
-        }
-      }, 15000);
-
-      BLE.requestLeScan({ services:[SERVICE_UUID], allowDuplicates:false }, async (result) => {
-        if (found) return;
-        found = true;
-        clearTimeout(timeout);
-        await BLE.stopLeScan().catch(()=>{});
-        resolve(result.device.deviceId);
-      }).catch(reject);
-    });
-
-    setBleStatus('connecting');
-    await BLE.connect({ deviceId: scanResult, timeout: 10000 });
-    bleDeviceId = scanResult;
-
-    // Listen for disconnect
-    await BLE.startNotifications({
-      deviceId: bleDeviceId,
-      service:  SERVICE_UUID,
-      characteristic: CHAR_UUID
-    }).catch(()=>{});
-
-    BLE.onDisconnected = () => {
-      bleDeviceId = null;
-      setStatus('Disconnected', false);
-    };
-
-    // Switch to controller
-    document.getElementById('connectScreen').style.display    = 'none';
-    document.getElementById('controllerScreen').style.display = 'flex';
-    document.getElementById('connBadge').textContent = 'BLE';
-    setStatus('Connected', true);
-    setBleStatus('connected');
-
-  } catch (err) {
-    if (err.message === 'not_found') {
-      setBleStatus('not_found');
-    } else {
-      setBleStatus('error');
-      console.error('BLE error:', err);
-    }
-  }
-}
-
-function sendBle(data) {
-  if (!BLE || !bleDeviceId) return;
-  const bytes = new TextEncoder().encode(JSON.stringify(data));
-  const total = Math.ceil(bytes.length / CHUNK_SIZE);
-  for (let i = 0; i < total; i++) {
-    const payload = bytes.slice(i*CHUNK_SIZE, (i+1)*CHUNK_SIZE);
-    const packet  = new Uint8Array(2 + payload.length);
-    packet[0] = i; packet[1] = total;
-    packet.set(payload, 2);
-    BLE.writeWithoutResponse({
-      deviceId: bleDeviceId,
-      service:  SERVICE_UUID,
-      characteristic: CHAR_UUID,
-      value: new DataView(packet.buffer)
-    }).catch(e => console.warn('BLE write:', e));
-  }
-}
-
-// ── Unified send ──
-function send(data) {
-  if (connMode==='ble') { sendBle(data); return; }
-  if (ws && ws.readyState===1) ws.send(JSON.stringify(data));
-}
-
-// ── Disconnect ──
 function disconnect() {
   clearTimeout(reconnectTimer);
-  if (ws) { ws.close(); ws=null; }
-  if (bleDeviceId && BLE) {
-    BLE.disconnect({ deviceId: bleDeviceId }).catch(()=>{});
-    bleDeviceId = null;
-  }
+  if (ws) { ws.close(); ws = null; }
   if (isDragging) toggleDrag();
   document.getElementById('controllerScreen').style.display = 'none';
   document.getElementById('connectScreen').style.display    = 'flex';
-  setBleStatus('idle');
 }
 
 function setStatus(text, ok) {
   document.getElementById('statText').textContent = text;
-  document.getElementById('dot').className = 'dot'+(ok?' ok':'');
+  document.getElementById('dot').className = 'dot' + (ok ? ' ok' : '');
 }
 
-// ── Controls ──
-function vibrate(){ if(navigator.vibrate) navigator.vibrate(15); }
-function setSpeed(v){ send({command:'set_speed',value:v}); }
-function sendKey(k){ vibrate(); send({command:'key',key:k}); }
-function clickBtn(btn,e){ if(e) e.preventDefault(); vibrate(); send({command:'click',button:btn}); }
+// ── Send ──
+function send(data) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(data)); }
+function vibrate()  { if (navigator.vibrate) navigator.vibrate(15); }
+function setSpeed(v){ send({command:'set_speed', value:v}); }
+function sendKey(k) { vibrate(); send({command:'key', key:k}); }
+function clickBtn(btn, e) { if(e) e.preventDefault(); vibrate(); send({command:'click', button:btn}); }
 
-function toggleDrag(){
-  isDragging=!isDragging;
-  const btn=document.getElementById('dragBtn');
-  btn.classList.toggle('active',isDragging);
-  btn.textContent=isDragging?'🔒 Dragging':'🔓 Drag';
-  if(navigator.vibrate) navigator.vibrate(isDragging?[50]:[20]);
-  send({command:isDragging?'drag_start':'drag_end'});
+// ── Drag ──
+function toggleDrag() {
+  isDragging = !isDragging;
+  const btn = document.getElementById('dragBtn');
+  btn.classList.toggle('active', isDragging);
+  btn.textContent = isDragging ? '🔒 Dragging' : '🔓 Drag';
+  if (navigator.vibrate) navigator.vibrate(isDragging ? [50] : [20]);
+  send({command: isDragging ? 'drag_start' : 'drag_end'});
 }
 
-function toggleMod(key,btn){
-  const active=btn.classList.toggle('active');
-  if(navigator.vibrate) navigator.vibrate(active?50:20);
-  send({command:'key_toggle',key,state:active?'down':'up'});
+// ── Modifier keys ──
+function toggleMod(key, btn) {
+  const active = btn.classList.toggle('active');
+  if (navigator.vibrate) navigator.vibrate(active ? 50 : 20);
+  send({command:'key_toggle', key, state: active ? 'down' : 'up'});
 }
 
 // ── Touchpad ──
-const pad=document.getElementById('touchpad');
-let lastX=0,lastY=0,touchStartT=0,isScroll=false;
+const pad = document.getElementById('touchpad');
+let lastX=0, lastY=0, touchStartT=0, isScroll=false;
 
-pad.addEventListener('touchstart',e=>{
+pad.addEventListener('touchstart', e => {
   e.preventDefault();
-  if(e.touches.length===1){
-    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
-    touchStartT=Date.now();isScroll=false;
-  } else if(e.touches.length===2){isScroll=true;lastY=e.touches[0].clientY;}
-},{passive:false});
-
-pad.addEventListener('touchmove',e=>{
-  e.preventDefault();
-  if(isScroll&&e.touches.length===2){
-    const cy=e.touches[0].clientY;send({command:'scroll',dy:cy-lastY});lastY=cy;
-  } else if(e.touches.length===1){
-    const cx=e.touches[0].clientX,cy=e.touches[0].clientY;
-    send({command:'move',dx:cx-lastX,dy:cy-lastY});lastX=cx;lastY=cy;
+  if (e.touches.length===1) {
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    touchStartT=Date.now(); isScroll=false;
+  } else if (e.touches.length===2) {
+    isScroll=true; lastY=e.touches[0].clientY;
   }
-},{passive:false});
+}, {passive:false});
 
-pad.addEventListener('touchend',e=>{
-  if(!isScroll&&e.changedTouches.length===1&&(Date.now()-touchStartT<150)) clickBtn('left');
+pad.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (isScroll && e.touches.length===2) {
+    const cy=e.touches[0].clientY;
+    send({command:'scroll', dy:cy-lastY}); lastY=cy;
+  } else if (e.touches.length===1) {
+    const cx=e.touches[0].clientX, cy=e.touches[0].clientY;
+    send({command:'move', dx:cx-lastX, dy:cy-lastY});
+    lastX=cx; lastY=cy;
+  }
+}, {passive:false});
+
+pad.addEventListener('touchend', e => {
+  if (!isScroll && e.changedTouches.length===1 && (Date.now()-touchStartT<150))
+    clickBtn('left');
 });
 
 // ── Keyboard ──
-const SPACER=' ';
-const hiddenInput=document.getElementById('hiddenInput');
-function openKeyboard(){ hiddenInput.value=SPACER; hiddenInput.focus(); }
-hiddenInput.addEventListener('input',e=>{
-  if(e.data){send({command:'type',text:e.data});}
-  else if(e.inputType==='deleteContentBackward'){sendKey('BACKSPACE');}
-  else if(hiddenInput.value.length===0){sendKey('BACKSPACE');}
-  hiddenInput.value=SPACER;
+const SPACER = ' ';
+const hiddenInput = document.getElementById('hiddenInput');
+function openKeyboard() { hiddenInput.value=SPACER; hiddenInput.focus(); }
+hiddenInput.addEventListener('input', e => {
+  if (e.data) { send({command:'type', text:e.data}); }
+  else if (e.inputType==='deleteContentBackward') { sendKey('BACKSPACE'); }
+  else if (hiddenInput.value.length===0) { sendKey('BACKSPACE'); }
+  hiddenInput.value = SPACER;
 });
-hiddenInput.addEventListener('keyup',e=>{ if(e.key==='Enter') sendKey('ENTER'); });
+hiddenInput.addEventListener('keyup', e => { if(e.key==='Enter') sendKey('ENTER'); });
 
 // ── Init ──
-window.addEventListener('load',()=>{
-  const saved=localStorage.getItem('lastIp');
-  if(saved) document.getElementById('ipInput').value=saved;
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('lastIp');
+  if (saved) {
+    document.getElementById('ipInput').value = saved;
+    document.getElementById('hotIpInput').value = saved;
+  }
 });
 </script>
 </body>
