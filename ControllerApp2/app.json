@@ -6,19 +6,21 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#0f1113"
+      "backgroundColor": "#0f1113",
+      "resizeMode": "contain"
     },
     "android": {
       "package": "com.anonymous.pccontroller",
-      "adaptiveIcon": {
-        "backgroundColor": "#0f1113"
-      }
+      "backgroundColor": "#0f1113"
     },
     "ios": {
       "bundleIdentifier": "com.anonymous.pccontroller"
     },
-    "plugins": [
-      "react-native-webview"
-    ]
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "4511fccd-9019-484c-88a2-3f8f53490927"
+      }
+    }
   }
 }
