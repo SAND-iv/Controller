@@ -1,0 +1,12 @@
+{
+  "appId": "com.okitha.pccontroller",
+  "appName": "PC Controller",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
