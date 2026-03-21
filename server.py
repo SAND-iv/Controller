@@ -2,6 +2,9 @@ import asyncio
 import json
 import os
 import socket
+import ssl
+import secrets
+import hashlib
 import qrcode
 import threading
 import tkinter as tk
@@ -14,6 +17,7 @@ import logging
 import atexit
 import subprocess
 import sys
+import ipaddress
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -23,7 +27,7 @@ pyautogui.MINIMUM_SLEEP = 0
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
-# ---------- paths (works both as .py and .exe) ----------
+# ---------- paths ----------
 if getattr(sys, 'frozen', False):
     WEB_DIR  = sys._MEIPASS
     BASE_DIR = os.path.dirname(sys.executable)
@@ -31,10 +35,13 @@ else:
     WEB_DIR  = os.path.dirname(os.path.abspath(__file__))
     BASE_DIR = WEB_DIR
 
-PORT = 8080
+PORT     = 8080
+WSS_PORT = 8443   # encrypted WebSocket port
 DEFAULT_MOUSE_SPEED = 1.5
 SCROLL_MULTIPLIER   = 4
-QR_FILE = os.path.join(BASE_DIR, "controller_qr.png")
+QR_FILE  = os.path.join(BASE_DIR, "controller_qr.png")
+CERT_FILE = os.path.join(BASE_DIR, "server.crt")
+KEY_FILE  = os.path.join(BASE_DIR, "server.key")
 
 keyboard = KeyController()
 
@@ -50,42 +57,92 @@ keymap = {
 for i in range(65, 91):
     keymap[chr(i)] = chr(i).lower()
 
+ALLOWED_COMMANDS = {
+    "type", "key", "drag_start", "drag_end", "hold", "release",
+    "move", "click", "scroll", "set_speed", "set_acc", "key_toggle", "auth"
+}
+
 def press_key(k):   keyboard.press(keymap.get(k, k))
 def release_key(k): keyboard.release(keymap.get(k, k))
 
-state = {"mouse_speed": DEFAULT_MOUSE_SPEED, "acceleration_enabled": False}
+# ============================================================
+# Security state
+# ============================================================
+security = {
+    "pin":          None,       # set at startup
+    "pin_hash":     None,
+    "active_ws":    None,       # only one connection allowed
+    "lock":         threading.Lock(),
+}
 
-def cleanup_qr():
-    if os.path.exists(QR_FILE):
-        try:
-            os.remove(QR_FILE)
-        except Exception:
-            pass
+def generate_pin():
+    """Generate a random 6-digit PIN."""
+    return str(secrets.randbelow(900000) + 100000)
 
-atexit.register(cleanup_qr)
+def hash_pin(pin: str) -> str:
+    return hashlib.sha256(pin.encode()).hexdigest()
 
-def ensure_firewall_rule():
-    """Silently add Windows Firewall rule to allow port 8080."""
-    def _run():
-        try:
-            subprocess.run([
-                "netsh", "advfirewall", "firewall", "add", "rule",
-                "name=PC Controller",
-                "dir=in", "action=allow",
-                f"localport={PORT}", "protocol=tcp"
-            ], capture_output=True, timeout=5)
-            log.info("Firewall rule ensured")
-        except Exception as e:
-            log.warning(f"Firewall rule skipped: {e}")
-    threading.Thread(target=_run, daemon=True).start()
+def verify_pin(pin: str) -> bool:
+    return hashlib.compare_digest(hash_pin(pin), security["pin_hash"])
+
+# ============================================================
+# SSL certificate (self-signed, generated at startup)
+# ============================================================
+def generate_self_signed_cert():
+    """Generate a self-signed cert using Python's cryptography library or openssl."""
+    if os.path.exists(CERT_FILE) and os.path.exists(KEY_FILE):
+        return True
+    try:
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        import datetime
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, u"PC Controller"),
+        ])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.utcnow())
+            .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=3650))
+            .sign(key, hashes.SHA256())
+        )
+        with open(KEY_FILE, "wb") as f:
+            f.write(key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption()
+            ))
+        with open(CERT_FILE, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        log.info("Self-signed certificate generated")
+        return True
+    except ImportError:
+        log.warning("cryptography library not installed — WSS unavailable, using WS")
+        return False
+    except Exception as e:
+        log.error(f"Cert generation failed: {e}")
+        return False
 
 # ============================================================
 # Command dispatcher
 # ============================================================
 def handle_command(data: dict):
     cmd = data.get("command")
+    if cmd not in ALLOWED_COMMANDS:
+        log.warning(f"Rejected unknown command: {cmd}")
+        return
     try:
-        if cmd == "type":          keyboard.type(data.get("text", ""))
+        if cmd == "type":
+            text = data.get("text", "")
+            if len(text) > 500: return   # rate limit
+            keyboard.type(text)
         elif cmd == "key":
             k = data.get("key")
             if k in keymap: press_key(k); release_key(k)
@@ -94,18 +151,21 @@ def handle_command(data: dict):
         elif cmd == "hold":        press_key(data["key"])
         elif cmd == "release":     release_key(data["key"])
         elif cmd == "move":
-            dx, dy = float(data.get("dx", 0)), float(data.get("dy", 0))
+            dx = max(-200, min(200, float(data.get("dx", 0))))
+            dy = max(-200, min(200, float(data.get("dy", 0))))
             spd = state["mouse_speed"]
-            fac = max(1.0, 1.0 + (abs(dx)+abs(dy))/8.0) if state["acceleration_enabled"] else 1.0
+            fac = max(1.0, 1.0+(abs(dx)+abs(dy))/8.0) if state["acceleration_enabled"] else 1.0
             pyautogui.moveRel(dx*spd*fac, dy*spd*fac)
         elif cmd == "click":
             b = data.get("button")
             if b == "left": pyautogui.click()
             elif b == "right": pyautogui.rightClick()
         elif cmd == "scroll":
-            pyautogui.scroll(int(int(data.get("dy", 0)) * SCROLL_MULTIPLIER))
+            dy = max(-20, min(20, int(data.get("dy", 0))))
+            pyautogui.scroll(int(dy * SCROLL_MULTIPLIER))
         elif cmd == "set_speed":
-            state["mouse_speed"] = float(data.get("value", DEFAULT_MOUSE_SPEED))
+            v = max(0.5, min(5.0, float(data.get("value", DEFAULT_MOUSE_SPEED))))
+            state["mouse_speed"] = v
         elif cmd == "set_acc":
             state["acceleration_enabled"] = bool(data.get("value"))
         elif cmd == "key_toggle":
@@ -117,21 +177,64 @@ def handle_command(data: dict):
     except Exception as e:
         log.error(f"Command error ({cmd}): {e}")
 
+state = {"mouse_speed": DEFAULT_MOUSE_SPEED, "acceleration_enabled": False}
+
 # ============================================================
-# WebSocket server
+# WebSocket server — PIN auth + single connection
 # ============================================================
 async def websocket_handler(request):
+    # ── Single connection limit ──
+    with security["lock"]:
+        if security["active_ws"] is not None:
+            log.warning("Connection rejected — another device already connected")
+            return web.Response(status=409, text="Another device is already connected")
+
     ws = web.WebSocketResponse()
     await ws.prepare(request)
-    log.info("Client connected")
+
+    authenticated = False
+    log.info(f"New connection from {request.remote}")
+
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
-                try: handle_command(json.loads(msg.data))
-                except Exception as e: log.error(f"Parse error: {e}")
+                try:
+                    data = json.loads(msg.data)
+                except Exception:
+                    await ws.send_str(json.dumps({"status": "error", "msg": "Invalid JSON"}))
+                    continue
+
+                cmd = data.get("command")
+
+                # ── Auth flow ──
+                if not authenticated:
+                    if cmd == "auth":
+                        pin = str(data.get("pin", ""))
+                        if verify_pin(pin):
+                            authenticated = True
+                            with security["lock"]:
+                                security["active_ws"] = ws
+                            await ws.send_str(json.dumps({"status": "auth_ok"}))
+                            log.info("Client authenticated successfully")
+                        else:
+                            await ws.send_str(json.dumps({"status": "auth_fail"}))
+                            log.warning(f"Wrong PIN from {request.remote}")
+                            await ws.close()
+                            return ws
+                    else:
+                        await ws.send_str(json.dumps({"status": "auth_required"}))
+                    continue
+
+                # ── Authenticated — handle commands ──
+                handle_command(data)
+
     finally:
         pyautogui.mouseUp()
+        with security["lock"]:
+            if security["active_ws"] is ws:
+                security["active_ws"] = None
         log.info("Client disconnected")
+
     return ws
 
 async def serve_file(request):
@@ -144,7 +247,7 @@ async def serve_file(request):
     ct = mime.get(os.path.splitext(filename)[1], "application/octet-stream")
     return web.FileResponse(path, headers={"Content-Type": ct})
 
-def start_wifi_server(loop):
+def start_server(loop, ssl_ctx=None):
     asyncio.set_event_loop(loop)
     app = web.Application()
     app.add_routes([web.get("/ws", websocket_handler),
@@ -152,12 +255,35 @@ def start_wifi_server(loop):
                     web.get("/{filename}", serve_file)])
     runner = web.AppRunner(app)
     loop.run_until_complete(runner.setup())
-    loop.run_until_complete(web.TCPSite(runner, "0.0.0.0", PORT).start())
+    port = WSS_PORT if ssl_ctx else PORT
+    loop.run_until_complete(web.TCPSite(runner, "0.0.0.0", port, ssl_context=ssl_ctx).start())
+    log.info(f"Server running on port {port} ({'WSS' if ssl_ctx else 'WS'})")
     loop.run_forever()
 
 # ============================================================
-# USB helper
+# QR / Firewall / USB
 # ============================================================
+def cleanup_qr():
+    for f in [QR_FILE, CERT_FILE, KEY_FILE]:
+        if os.path.exists(f):
+            try: os.remove(f)
+            except: pass
+
+atexit.register(cleanup_qr)
+
+def ensure_firewall_rule():
+    def _run():
+        try:
+            for port in [PORT, WSS_PORT]:
+                subprocess.run([
+                    "netsh", "advfirewall", "firewall", "add", "rule",
+                    "name=PC Controller", "dir=in", "action=allow",
+                    f"localport={port}", "protocol=tcp"
+                ], capture_output=True, timeout=5)
+        except Exception as e:
+            log.warning(f"Firewall rule skipped: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
 def find_adb():
     candidates = [
         "adb",
@@ -168,23 +294,21 @@ def find_adb():
         try:
             r = subprocess.run([c, "version"], capture_output=True, timeout=3)
             if r.returncode == 0: return c
-        except Exception: continue
+        except: continue
     return None
 
 def setup_usb(callback):
     def _run():
         adb = find_adb()
         if not adb:
-            callback("error", "adb not found.\nInstall Android Studio first.")
-            return
+            callback("error", "adb not found.\nInstall Android Studio first."); return
         callback("info", "Checking device…")
         try:
             devices = subprocess.run([adb, "devices"], capture_output=True,
                                      text=True, timeout=5)
             lines = [l for l in devices.stdout.strip().split("\n")[1:] if l.strip()]
             if not lines:
-                callback("error", "No device found.\nConnect phone + allow USB Debugging.")
-                return
+                callback("error", "No device found.\nConnect phone + allow USB Debugging."); return
             r = subprocess.run([adb, "reverse", f"tcp:{PORT}", f"tcp:{PORT}"],
                                capture_output=True, text=True, timeout=5)
             if r.returncode == 0:
@@ -195,9 +319,6 @@ def setup_usb(callback):
             callback("error", str(e))
     threading.Thread(target=_run, daemon=True).start()
 
-# ============================================================
-# Helpers
-# ============================================================
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -216,11 +337,29 @@ class ServerGUI:
     def __init__(self, root):
         self.root = root
         root.title("PC Controller")
-        root.geometry("440x630")
+        root.geometry("460x700")
         root.resizable(False, False)
         root.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.ip  = get_local_ip()
-        self.url = f"http://{self.ip}:{PORT}/"
+
+        # Generate PIN
+        pin = generate_pin()
+        security["pin"] = pin
+        security["pin_hash"] = hash_pin(pin)
+
+        # Try SSL
+        self.ssl_ctx = None
+        if generate_self_signed_cert():
+            try:
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ctx.load_cert_chain(CERT_FILE, KEY_FILE)
+                self.ssl_ctx = ctx
+            except Exception as e:
+                log.warning(f"SSL setup failed: {e}")
+
+        self.ip   = get_local_ip()
+        self.port = WSS_PORT if self.ssl_ctx else PORT
+        self.url  = f"http://{self.ip}:{PORT}/"
+
         self._build_ui()
         self._start_server()
 
@@ -231,22 +370,51 @@ class ServerGUI:
         ttk.Label(frm, text="PC Controller",
                   font=("Segoe UI", 16, "bold")).pack(pady=(0,4))
 
-        # QR code
+        # QR
         self.qr_label = ttk.Label(frm)
         self.qr_label.pack(pady=2)
         ttk.Label(frm, text=self.url, foreground="#3b82f6",
-                  font=("Segoe UI", 9)).pack(pady=(0,6))
+                  font=("Segoe UI", 9)).pack(pady=(0,4))
 
-        # WiFi IP
+        # PIN — big and prominent
+        pin_frm = ttk.LabelFrame(frm, text="🔐 Connection PIN", padding=12)
+        pin_frm.pack(fill="x", pady=(0,8))
+        pin_inner = ttk.Frame(pin_frm); pin_inner.pack(fill="x")
+        self.pin_lbl = ttk.Label(pin_inner,
+                  text=security["pin"],
+                  font=("Segoe UI", 32, "bold"),
+                  foreground="#f59e0b")
+        self.pin_lbl.pack(side="left")
+        btn_col = ttk.Frame(pin_inner); btn_col.pack(side="right")
+        ttk.Button(btn_col, text="🔄 New PIN",
+                   command=self._regen_pin).pack(pady=(0,4))
+        ttk.Button(btn_col, text="📋 Copy",
+                   command=lambda: self._copy(security["pin"])).pack()
+        ttk.Label(pin_frm,
+                  text="Phone must enter this PIN to connect",
+                  font=("Segoe UI", 9), foreground="#888").pack(anchor="w")
+
+        # Connection status
+        status_frm = ttk.LabelFrame(frm, text="Connection Status", padding=10)
+        status_frm.pack(fill="x", pady=(0,8))
+        self.conn_var = tk.StringVar(value="⚪ No device connected")
+        ttk.Label(status_frm, textvariable=self.conn_var,
+                  font=("Segoe UI", 10)).pack(anchor="w")
+        ttk.Button(status_frm, text="⛔ Kick Device",
+                   command=self._kick).pack(anchor="e")
+
+        # IP
         ip_frm = ttk.LabelFrame(frm, text="WiFi / Hotspot IP", padding=10)
         ip_frm.pack(fill="x", pady=(0,8))
         row = ttk.Frame(ip_frm); row.pack(fill="x")
-        ttk.Label(row, text=self.ip, font=("Segoe UI", 22, "bold"),
+        ttk.Label(row, text=self.ip, font=("Segoe UI", 18, "bold"),
                   foreground="#22c55e").pack(side="left")
         ttk.Button(row, text="📋 Copy",
                    command=lambda: self._copy(self.ip)).pack(side="right")
-        ttk.Label(ip_frm, text="Enter this in the app (WiFi or Hotspot tab)",
-                  font=("Segoe UI", 9), foreground="#888").pack(anchor="w")
+        enc = "🔒 Encrypted (WSS)" if self.ssl_ctx else "⚠️ Unencrypted (WS)"
+        ttk.Label(ip_frm, text=enc,
+                  font=("Segoe UI", 9),
+                  foreground="#22c55e" if self.ssl_ctx else "#f59e0b").pack(anchor="w")
 
         # USB
         usb_frm = ttk.LabelFrame(frm, text="USB Connection", padding=10)
@@ -254,13 +422,12 @@ class ServerGUI:
         ttk.Label(usb_frm,
                   text="Plug in your phone with USB Debugging ON, then click:",
                   font=("Segoe UI", 9), foreground="#888",
-                  wraplength=380).pack(anchor="w", pady=(0,6))
-        btn_row = ttk.Frame(usb_frm); btn_row.pack(fill="x")
-        self.usb_btn = ttk.Button(btn_row, text="🔌 Setup USB",
-                                   command=self._do_usb)
+                  wraplength=400).pack(anchor="w", pady=(0,6))
+        br = ttk.Frame(usb_frm); br.pack(fill="x")
+        self.usb_btn = ttk.Button(br, text="🔌 Setup USB", command=self._do_usb)
         self.usb_btn.pack(side="left")
         self.usb_var = tk.StringVar(value="")
-        self.usb_lbl = ttk.Label(btn_row, textvariable=self.usb_var,
+        self.usb_lbl = ttk.Label(br, textvariable=self.usb_var,
                                   font=("Segoe UI", 9), foreground="#888",
                                   wraplength=240)
         self.usb_lbl.pack(side="left", padx=(10,0))
@@ -271,21 +438,39 @@ class ServerGUI:
         sr = ttk.Frame(opts); sr.pack(fill="x", pady=(0,4))
         ttk.Label(sr, text="Mouse Speed:", font=("Segoe UI", 10)).pack(side="left")
         self.spd_lbl = ttk.Label(sr, text=f"{state['mouse_speed']:.1f}×",
-                                  font=("Segoe UI", 10, "bold"),
-                                  foreground="#3b82f6")
+                                  font=("Segoe UI", 10, "bold"), foreground="#3b82f6")
         self.spd_lbl.pack(side="right")
         self.spd_var = tk.DoubleVar(value=state["mouse_speed"])
         ttk.Scale(opts, from_=0.5, to=5.0, variable=self.spd_var,
-                  orient="horizontal",
-                  command=self._on_speed).pack(fill="x", pady=(0,8))
+                  orient="horizontal", command=self._on_speed).pack(fill="x", pady=(0,8))
         self.acc_var = tk.BooleanVar(value=state["acceleration_enabled"])
         ttk.Checkbutton(opts, text="Enable Mouse Acceleration",
-                        variable=self.acc_var,
-                        command=self._on_acc).pack(anchor="w")
+                        variable=self.acc_var, command=self._on_acc).pack(anchor="w")
 
         self.status_var = tk.StringVar(value="Starting…")
         ttk.Label(frm, textvariable=self.status_var,
-                  foreground="#888", font=("Segoe UI", 9)).pack(pady=(6,0))
+                  foreground="#888", font=("Segoe UI", 9)).pack(pady=(4,0))
+
+    def _regen_pin(self):
+        pin = generate_pin()
+        security["pin"] = pin
+        security["pin_hash"] = hash_pin(pin)
+        self.pin_lbl.config(text=pin)
+        # Kick existing connection — PIN changed
+        self._kick()
+        log.info("PIN regenerated")
+
+    def _kick(self):
+        with security["lock"]:
+            ws = security["active_ws"]
+        if ws:
+            asyncio.run_coroutine_threadsafe(ws.close(), self._loop)
+            self.conn_var.set("⚪ No device connected")
+
+    def _update_conn_status(self, connected: bool):
+        self.root.after(0, lambda: self.conn_var.set(
+            "🟢 Device connected" if connected else "⚪ No device connected"
+        ))
 
     def _do_usb(self):
         self.usb_btn.config(state="disabled")
@@ -293,15 +478,15 @@ class ServerGUI:
         def cb(status, msg):
             def _u():
                 self.usb_var.set(msg)
-                fg = "#22c55e" if status=="ok" else "#ef4444" if status=="error" else "#888"
-                self.usb_lbl.config(foreground=fg)
+                self.usb_lbl.config(
+                    foreground="#22c55e" if status=="ok" else
+                    "#ef4444" if status=="error" else "#888")
                 self.usb_btn.config(state="normal")
             self.root.after(0, _u)
         setup_usb(cb)
 
     def _on_speed(self, val):
-        v = float(val)
-        state["mouse_speed"] = v
+        v = float(val); state["mouse_speed"] = v
         self.spd_lbl.config(text=f"{v:.1f}×")
 
     def _on_acc(self):
@@ -314,16 +499,18 @@ class ServerGUI:
 
     def _start_server(self):
         ensure_firewall_rule()
-        threading.Thread(target=start_wifi_server,
-                         args=(asyncio.new_event_loop(),), daemon=True).start()
+        self._loop = asyncio.new_event_loop()
+        threading.Thread(target=start_server,
+                         args=(self._loop, self.ssl_ctx), daemon=True).start()
         self.root.after(500, self._load_qr)
+        proto = "WSS 🔒" if self.ssl_ctx else "WS ⚠️"
         self.root.after(600, lambda: self.status_var.set(
-            f"✅ Running — {self.ip}:{PORT}"))
+            f"✅ Running — {self.ip}:{self.port} ({proto})"))
 
     def _load_qr(self):
         try:
             f = generate_qr_image(self.url)
-            im = Image.open(f).resize((160, 160))
+            im = Image.open(f).resize((150, 150))
             self.qr_img = ImageTk.PhotoImage(im)
             self.qr_label.config(image=self.qr_img)
         except Exception as e:
