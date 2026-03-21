@@ -7,7 +7,16 @@
     "allowNavigation": ["*"]
   },
   "android": {
-    "allowMixedContent": true,
-    "useLegacyBridge": false
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Scanning for PC Controller...",
+        "cancel": "Cancel",
+        "availableDevices": "Available devices",
+        "noDeviceFound": "No device found"
+      }
+    }
   }
 }
