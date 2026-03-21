@@ -429,24 +429,28 @@ function connectWs() {
   if (ws) { ws.close(); ws = null; }
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
   ws.onopen = () => {
-    setStatus('Enter PIN…', false);
-    // Wait for user to submit PIN
+    setStatus('Connecting…', false);
+    // Send a dummy message to trigger server response
+    // Server will either auto-auth (no PIN) or request PIN
+    ws.send(JSON.stringify({command: 'ping'}));
   };
   ws.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
       if (data.status === 'auth_ok') {
-        // PIN accepted — go to controller
+        // Authenticated — go straight to controller
         document.getElementById('pinScreen').style.display        = 'none';
         document.getElementById('controllerScreen').style.display = 'flex';
         setStatus('Connected', true);
       } else if (data.status === 'auth_fail') {
         document.getElementById('pinError').style.display = 'block';
         document.getElementById('pinInput').value = '';
+        document.getElementById('pinInput').focus();
       } else if (data.status === 'auth_required') {
-        // Server asking for auth — send PIN if we have one
-        const pin = document.getElementById('pinInput').value.trim();
-        if (pin.length === 6) sendPin(pin);
+        // Server requires PIN — show PIN screen
+        document.getElementById('pinScreen').style.display = 'flex';
+        setStatus('Enter PIN…', false);
+        setTimeout(() => document.getElementById('pinInput').focus(), 100);
       }
     } catch {}
   };

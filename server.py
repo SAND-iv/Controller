@@ -59,7 +59,7 @@ for i in range(65, 91):
 
 ALLOWED_COMMANDS = {
     "type", "key", "drag_start", "drag_end", "hold", "release",
-    "move", "click", "scroll", "set_speed", "set_acc", "key_toggle", "auth"
+    "move", "click", "scroll", "set_speed", "set_acc", "key_toggle", "auth", "ping"
 }
 
 def press_key(k):   keyboard.press(keymap.get(k, k))
@@ -69,9 +69,10 @@ def release_key(k): keyboard.release(keymap.get(k, k))
 # Security state
 # ============================================================
 security = {
-    "pin":          None,       # set at startup
+    "pin":          None,
     "pin_hash":     None,
-    "active_ws":    None,       # only one connection allowed
+    "pin_enabled":  False,      # PIN is optional
+    "active_ws":    None,
     "lock":         threading.Lock(),
 }
 
@@ -208,6 +209,15 @@ async def websocket_handler(request):
 
                 # ── Auth flow ──
                 if not authenticated:
+                    # If PIN is disabled, auto-authenticate
+                    if not security["pin_enabled"]:
+                        authenticated = True
+                        with security["lock"]:
+                            security["active_ws"] = ws
+                        await ws.send_str(json.dumps({"status": "auth_ok"}))
+                        log.info("Client connected (no PIN required)")
+                        continue
+
                     if cmd == "auth":
                         pin = str(data.get("pin", ""))
                         if verify_pin(pin):
@@ -376,10 +386,20 @@ class ServerGUI:
         ttk.Label(frm, text=self.url, foreground="#3b82f6",
                   font=("Segoe UI", 9)).pack(pady=(0,4))
 
-        # PIN — big and prominent
-        pin_frm = ttk.LabelFrame(frm, text="🔐 Connection PIN", padding=12)
+        # PIN — optional toggle
+        pin_frm = ttk.LabelFrame(frm, text="🔐 Connection PIN (Optional)", padding=12)
         pin_frm.pack(fill="x", pady=(0,8))
-        pin_inner = ttk.Frame(pin_frm); pin_inner.pack(fill="x")
+
+        # Toggle row
+        tog_row = ttk.Frame(pin_frm); tog_row.pack(fill="x", pady=(0,8))
+        self.pin_enabled_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(tog_row, text="Require PIN to connect",
+                        variable=self.pin_enabled_var,
+                        command=self._on_pin_toggle).pack(side="left")
+
+        # PIN display (hidden by default)
+        self.pin_content = ttk.Frame(pin_frm)
+        pin_inner = ttk.Frame(self.pin_content); pin_inner.pack(fill="x")
         self.pin_lbl = ttk.Label(pin_inner,
                   text=security["pin"],
                   font=("Segoe UI", 32, "bold"),
@@ -390,8 +410,8 @@ class ServerGUI:
                    command=self._regen_pin).pack(pady=(0,4))
         ttk.Button(btn_col, text="📋 Copy",
                    command=lambda: self._copy(security["pin"])).pack()
-        ttk.Label(pin_frm,
-                  text="Phone must enter this PIN to connect",
+        ttk.Label(self.pin_content,
+                  text="Share this PIN with whoever needs to connect",
                   font=("Segoe UI", 9), foreground="#888").pack(anchor="w")
 
         # Connection status
@@ -451,12 +471,21 @@ class ServerGUI:
         ttk.Label(frm, textvariable=self.status_var,
                   foreground="#888", font=("Segoe UI", 9)).pack(pady=(4,0))
 
+    def _on_pin_toggle(self):
+        enabled = self.pin_enabled_var.get()
+        security["pin_enabled"] = enabled
+        if enabled:
+            self.pin_content.pack(fill="x", pady=(0,4))
+        else:
+            self.pin_content.pack_forget()
+            self._kick()  # kick any connected device when disabling PIN
+        log.info(f"PIN {'enabled' if enabled else 'disabled'}")
+
     def _regen_pin(self):
         pin = generate_pin()
         security["pin"] = pin
         security["pin_hash"] = hash_pin(pin)
         self.pin_lbl.config(text=pin)
-        # Kick existing connection — PIN changed
         self._kick()
         log.info("PIN regenerated")
 
