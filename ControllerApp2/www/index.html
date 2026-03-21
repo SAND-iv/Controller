@@ -224,6 +224,38 @@
   <div class="scan-hint">Point at the QR code shown in the server window on your PC</div>
 </div>
 
+<!-- ── PIN SCREEN ── -->
+<div id="pinScreen" style="display:none;">
+  <div style="display:flex;flex-direction:column;align-items:center;
+              justify-content:center;height:100%;padding:32px;background:var(--bg);">
+    <div style="font-size:48px;margin-bottom:16px;">🔐</div>
+    <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">Enter PIN</h2>
+    <p style="color:var(--muted);font-size:14px;text-align:center;margin-bottom:28px;line-height:1.5;">
+      Enter the 6-digit PIN shown in the server window on your PC
+    </p>
+    <div style="width:100%;background:var(--panel);border-radius:16px;padding:20px;margin-bottom:16px;">
+      <input type="tel" id="pinInput" maxlength="6" placeholder="000000"
+             style="width:100%;background:var(--btn);border:none;border-radius:10px;
+                    padding:16px;font-size:28px;color:var(--text);text-align:center;
+                    letter-spacing:8px;outline:none;"
+             oninput="if(this.value.length===6) submitPin()"
+             autocomplete="off"/>
+    </div>
+    <div id="pinError" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;">
+      Wrong PIN — check the server window
+    </div>
+    <button onclick="submitPin()"
+            style="width:100%;background:var(--accent);border:none;border-radius:14px;
+                   padding:16px;font-size:16px;font-weight:800;color:#fff;margin-bottom:12px;">
+      Verify PIN
+    </button>
+    <button onclick="disconnect()"
+            style="background:none;border:none;color:var(--muted);font-size:13px;">
+      Back
+    </button>
+  </div>
+</div>
+
 <!-- ── CONTROLLER ── -->
 <div id="controllerScreen">
   <div class="wrap">
@@ -382,8 +414,11 @@ function startConnect(mode) {
 
 function _goToController(mode) {
   connMode = mode;
-  document.getElementById('connectScreen').style.display    = 'none';
-  document.getElementById('controllerScreen').style.display = 'flex';
+  // Show PIN screen first
+  document.getElementById('connectScreen').style.display = 'none';
+  document.getElementById('pinScreen').style.display     = 'flex';
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').style.display = 'none';
   const badge = document.getElementById('connBadge');
   badge.textContent = mode === 'usb' ? 'USB' : mode === 'hot' ? 'Hotspot' : 'WiFi';
   badge.className = 'conn-badge badge-' + (mode === 'hot' ? 'hot' : mode === 'usb' ? 'usb' : 'wifi');
@@ -393,7 +428,28 @@ function _goToController(mode) {
 function connectWs() {
   if (ws) { ws.close(); ws = null; }
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
-  ws.onopen  = () => setStatus('Connected', true);
+  ws.onopen = () => {
+    setStatus('Enter PIN…', false);
+    // Wait for user to submit PIN
+  };
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.status === 'auth_ok') {
+        // PIN accepted — go to controller
+        document.getElementById('pinScreen').style.display        = 'none';
+        document.getElementById('controllerScreen').style.display = 'flex';
+        setStatus('Connected', true);
+      } else if (data.status === 'auth_fail') {
+        document.getElementById('pinError').style.display = 'block';
+        document.getElementById('pinInput').value = '';
+      } else if (data.status === 'auth_required') {
+        // Server asking for auth — send PIN if we have one
+        const pin = document.getElementById('pinInput').value.trim();
+        if (pin.length === 6) sendPin(pin);
+      }
+    } catch {}
+  };
   ws.onclose = () => {
     setStatus('Reconnecting…', false);
     reconnectTimer = setTimeout(connectWs, 2000);
@@ -401,11 +457,25 @@ function connectWs() {
   ws.onerror = () => setStatus('Error', false);
 }
 
+function submitPin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  if (pin.length !== 6) return;
+  document.getElementById('pinError').style.display = 'none';
+  sendPin(pin);
+}
+
+function sendPin(pin) {
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({command: 'auth', pin: pin}));
+  }
+}
+
 function disconnect() {
   clearTimeout(reconnectTimer);
   if (ws) { ws.close(); ws = null; }
   if (isDragging) toggleDrag();
   document.getElementById('controllerScreen').style.display = 'none';
+  document.getElementById('pinScreen').style.display        = 'none';
   document.getElementById('connectScreen').style.display    = 'flex';
 }
 
