@@ -7,6 +7,7 @@
     "allowNavigation": ["*"]
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "useLegacyBridge": false
   }
 }

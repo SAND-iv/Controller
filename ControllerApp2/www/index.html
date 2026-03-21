@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
 <title>PC Controller</title>
 <meta name="theme-color" content="#0f1113">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
     --bg: #0f1113; --panel: #1a1c1e; --btn: #2a2d30;
@@ -21,83 +22,99 @@
   /* ── CONNECT SCREEN ── */
   #connectScreen {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; height: 100%; padding: 32px;
+    justify-content: center; height: 100%; padding: 28px;
   }
-  #connectScreen h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
-  #connectScreen p  { color: var(--muted); font-size: 15px; text-align: center;
-                      margin-bottom: 36px; line-height: 1.5; }
+  #connectScreen h1 { font-size: 34px; font-weight: 800; margin-bottom: 8px; }
+  #connectScreen .sub { color: var(--muted); font-size: 14px; text-align: center;
+                        margin-bottom: 28px; line-height: 1.5; }
   .card {
     width: 100%; background: var(--panel); border-radius: 16px;
-    padding: 20px; margin-bottom: 16px;
-    border: 1px solid #2a2d30;
+    padding: 20px; margin-bottom: 14px; border: 1px solid #2a2d30;
   }
   .card label { font-size: 11px; color: var(--muted); font-weight: 700;
-                text-transform: uppercase; letter-spacing: 1px; display: block;
-                margin-bottom: 10px; }
+                text-transform: uppercase; letter-spacing: 1px;
+                display: block; margin-bottom: 10px; }
   .card input {
     width: 100%; background: var(--btn); border: none; border-radius: 10px;
-    padding: 14px; font-size: 20px; color: var(--text); letter-spacing: 1px;
-    outline: none;
+    padding: 14px; font-size: 20px; color: var(--text);
+    letter-spacing: 1px; outline: none;
   }
   .card .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
   .connect-btn {
     width: 100%; background: var(--accent); border: none; border-radius: 14px;
-    padding: 18px; font-size: 17px; font-weight: 800; color: #fff;
-    margin-bottom: 20px; cursor: pointer;
+    padding: 17px; font-size: 16px; font-weight: 800; color: #fff;
+    margin-bottom: 12px; cursor: pointer;
   }
-  .connect-btn:disabled { opacity: 0.4; }
+  .scan-btn {
+    width: 100%; background: var(--panel); border: 2px solid var(--accent);
+    border-radius: 14px; padding: 15px; font-size: 15px; font-weight: 700;
+    color: var(--accent); margin-bottom: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .scan-btn:active { background: #1e2a3a; }
   .tip { color: var(--muted); font-size: 13px; text-align: center; line-height: 1.6; }
-  #connectError {
-    color: var(--red); font-size: 13px; text-align: center;
-    margin-bottom: 12px; display: none;
+  #connectError { color: var(--red); font-size: 13px; text-align: center;
+                  margin-bottom: 10px; display: none; }
+
+  /* ── QR SCANNER SCREEN ── */
+  #scanScreen {
+    display: none; flex-direction: column; height: 100%; background: #000;
   }
+  .scan-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 48px 20px 16px; background: var(--bg);
+  }
+  .scan-header h2 { font-size: 18px; font-weight: 700; }
+  .scan-close { background: none; border: none; color: var(--muted);
+                font-size: 22px; padding: 4px 10px; cursor: pointer; }
+  #qr-reader { width: 100% !important; flex: 1; border: none !important; }
+  #qr-reader video { width: 100% !important; height: 100% !important;
+                     object-fit: cover !important; }
+  #qr-reader img { display: none !important; }
+  .scan-hint { background: var(--bg); padding: 16px; text-align: center;
+               color: var(--muted); font-size: 13px; line-height: 1.5; }
 
   /* ── CONTROLLER SCREEN ── */
   #controllerScreen { display: none; height: 100%; flex-direction: column; }
   .wrap { padding: 12px; height: 100%; display: flex; flex-direction: column; }
-
-  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .disc-btn { background: none; border: none; color: var(--muted); font-size: 13px; padding: 6px; }
-  .status-pill { display: flex; align-items: center; gap: 6px; background: var(--panel);
-                 padding: 4px 10px; border-radius: 20px; }
+  .header { display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 10px; }
+  .disc-btn { background: none; border: none; color: var(--muted);
+              font-size: 13px; padding: 6px; }
+  .status-pill { display: flex; align-items: center; gap: 6px;
+                 background: var(--panel); padding: 4px 10px; border-radius: 20px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
   .dot.ok { background: var(--active); }
   .status-pill span { font-size: 12px; font-weight: 600; }
-
   .slider-box { display: flex; align-items: center; background: var(--panel);
                 padding: 8px 12px; border-radius: 12px; margin-bottom: 10px;
                 border: 1px solid #333; }
   .slider-label { font-size: 11px; color: var(--muted); font-weight: 700;
                   margin-right: 10px; width: 44px; }
   input[type=range] { flex: 1; accent-color: var(--accent); }
-
   .media-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .icon-btn { background: var(--btn); border: none; border-radius: 12px;
               color: var(--text); padding: 12px; flex: 1;
               font-weight: 600; font-size: 13px; }
   .icon-btn:active { background: var(--accent); }
-
   #touchpad { flex: 1; background: var(--panel); border-radius: 16px;
               margin-bottom: 10px; position: relative; border: 1px solid #333;
               touch-action: none; }
   #touchpad:active { border-color: var(--accent); }
   .pad-hint { position: absolute; top: 50%; left: 50%;
-              transform: translate(-50%, -50%); text-align: center;
+              transform: translate(-50%,-50%); text-align: center;
               pointer-events: none; }
   .pad-hint p:first-child { color: #ffffff18; font-size: 22px; font-weight: 700; }
   .pad-hint p:last-child  { color: #ffffff12; font-size: 11px; margin-top: 4px; }
-
   .mouse-row { display: flex; gap: 10px; height: 52px; margin-bottom: 8px; }
   .mouse-btn { flex: 1; background: var(--btn); border: none; border-radius: 12px;
                color: var(--text); font-size: 14px; font-weight: 700; }
   .mouse-btn:active, .mouse-btn.active { background: var(--active); }
-
   .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
   .tool-btn { background: #222; color: var(--muted); border: 1px solid #333;
               padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; }
   .tool-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .tool-btn:active { opacity: 0.7; }
-
   #hiddenInput { position: fixed; top: -200px; left: 0; width: 1px; height: 1px; opacity: 0; }
 </style>
 </head>
@@ -106,25 +123,39 @@
 <!-- ── CONNECT SCREEN ── -->
 <div id="connectScreen">
   <h1>PC Controller</h1>
-  <p>Enter your PC's IP address to connect over WiFi</p>
+  <p class="sub">Scan the QR code from the server<br>or enter the IP manually</p>
+
+  <button class="scan-btn" onclick="openScanner()">
+    <span>📷</span> Scan QR Code
+  </button>
 
   <div class="card">
-    <label>PC IP Address</label>
+    <label>PC IP Address (manual)</label>
     <input type="text" id="ipInput" placeholder="192.168.1.42"
            inputmode="decimal" autocomplete="off" autocorrect="off"/>
     <div class="hint">Find the IP in the green box in the server window</div>
   </div>
 
   <div id="connectError">Could not connect — check IP and make sure server is running</div>
-
-  <button class="connect-btn" id="connectBtn" onclick="startConnect()">Connect →</button>
+  <button class="connect-btn" onclick="startConnect()">Connect →</button>
   <p class="tip">📡 Phone and PC must be on the same WiFi network</p>
+</div>
+
+<!-- ── QR SCANNER SCREEN ── -->
+<div id="scanScreen">
+  <div class="scan-header">
+    <h2>📷 Scan QR Code</h2>
+    <button class="scan-close" onclick="closeScanner()">✕</button>
+  </div>
+  <div id="qr-reader"></div>
+  <div class="scan-hint">
+    Point your camera at the QR code shown in the server window on your PC
+  </div>
 </div>
 
 <!-- ── CONTROLLER SCREEN ── -->
 <div id="controllerScreen">
   <div class="wrap">
-
     <div class="header">
       <button class="disc-btn" onclick="disconnect()">✕ Disconnect</button>
       <div class="status-pill">
@@ -132,13 +163,11 @@
         <span id="statText">Connecting…</span>
       </div>
     </div>
-
     <div class="slider-box">
       <span class="slider-label">SPEED</span>
       <input type="range" min="0.5" max="5.0" step="0.1" value="1.5"
              oninput="setSpeed(this.value)">
     </div>
-
     <div class="media-row">
       <button class="icon-btn" onclick="sendKey('vol_down')">Vol -</button>
       <button class="icon-btn" onclick="sendKey('mute')">Mute</button>
@@ -149,33 +178,28 @@
       <button class="icon-btn" onclick="sendKey('play')">⏯</button>
       <button class="icon-btn" onclick="sendKey('next')">⏭</button>
     </div>
-
     <div id="touchpad">
       <div class="pad-hint">
         <p>TRACKPAD</p>
         <p>tap · drag · 2-finger scroll</p>
       </div>
     </div>
-
     <div class="mouse-row">
       <button class="mouse-btn" ontouchstart="clickBtn('left',event)">L</button>
       <button class="mouse-btn" id="dragBtn" onclick="toggleDrag()">🔓 Drag</button>
       <button class="mouse-btn" ontouchstart="clickBtn('right',event)">R</button>
     </div>
-
     <div class="mouse-row">
       <button class="mouse-btn" id="ctrlBtn" onclick="toggleMod('ctrl',this)">Ctrl</button>
       <button class="mouse-btn" id="altBtn"  onclick="toggleMod('alt',this)">Alt</button>
       <button class="mouse-btn" onclick="sendKey('win')">⊞ Win</button>
     </div>
-
     <div class="tool-grid">
       <button class="tool-btn primary" onclick="openKeyboard()">⌨ Type</button>
       <button class="tool-btn" onclick="sendKey('ENTER')">Enter</button>
       <button class="tool-btn" onclick="sendKey('BACKSPACE')">⌫ Back</button>
       <button class="tool-btn" onclick="sendKey('ESC')">Esc</button>
     </div>
-
   </div>
 </div>
 
@@ -183,19 +207,61 @@
        autocapitalize="none" spellcheck="false"/>
 
 <script>
-// ── State ──
+// ── QR Scanner ──
+let html5QrCode = null;
+
+function openScanner() {
+  document.getElementById('connectScreen').style.display = 'none';
+  document.getElementById('scanScreen').style.display   = 'flex';
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    (decodedText) => {
+      try {
+        // QR contains: http://192.168.1.42:8080/
+        const url = new URL(decodedText);
+        const ip  = url.hostname;
+        if (!ip) return;
+        closeScanner();
+        currentIp = ip;
+        localStorage.setItem('lastIp', ip);
+        document.getElementById('ipInput').value = ip;
+        // Auto-connect immediately
+        document.getElementById('connectScreen').style.display    = 'none';
+        document.getElementById('controllerScreen').style.display = 'flex';
+        connect();
+      } catch { /* not a valid URL, keep scanning */ }
+    },
+    () => {} // silent scan failures
+  ).catch(() => {
+    closeScanner();
+    alert('Camera permission denied. Please allow camera access and try again.');
+  });
+}
+
+function closeScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().catch(() => {});
+    html5QrCode = null;
+  }
+  document.getElementById('scanScreen').style.display   = 'none';
+  document.getElementById('connectScreen').style.display = 'flex';
+}
+
+// ── Connect / Disconnect ──
 let ws = null, reconnectTimer = null;
 let currentIp = '';
 let isDragging = false;
 
-// ── Connect / Disconnect ──
 function startConnect() {
   const ip = document.getElementById('ipInput').value.trim();
   if (!ip) return;
   currentIp = ip;
   localStorage.setItem('lastIp', ip);
-  document.getElementById('connectError').style.display = 'none';
-  document.getElementById('connectScreen').style.display = 'none';
+  document.getElementById('connectError').style.display    = 'none';
+  document.getElementById('connectScreen').style.display   = 'none';
   document.getElementById('controllerScreen').style.display = 'flex';
   connect();
 }
@@ -203,7 +269,7 @@ function startConnect() {
 function connect() {
   if (ws) { ws.close(); ws = null; }
   ws = new WebSocket(`ws://${currentIp}:8080/ws`);
-  ws.onopen  = () => { setStatus('Connected', true); };
+  ws.onopen  = () => setStatus('Connected', true);
   ws.onclose = () => {
     setStatus('Reconnecting…', false);
     reconnectTimer = setTimeout(connect, 2000);
@@ -216,7 +282,7 @@ function disconnect() {
   if (ws) { ws.close(); ws = null; }
   if (isDragging) toggleDrag();
   document.getElementById('controllerScreen').style.display = 'none';
-  document.getElementById('connectScreen').style.display   = 'flex';
+  document.getElementById('connectScreen').style.display    = 'flex';
 }
 
 function setStatus(text, ok) {
@@ -225,12 +291,10 @@ function setStatus(text, ok) {
 }
 
 // ── Send ──
-function send(data) {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
-}
-function vibrate() { if (navigator.vibrate) navigator.vibrate(15); }
-function setSpeed(v) { send({command:'set_speed', value:v}); }
-function sendKey(k)  { vibrate(); send({command:'key', key:k}); }
+function send(data) { if (ws && ws.readyState===1) ws.send(JSON.stringify(data)); }
+function vibrate()  { if (navigator.vibrate) navigator.vibrate(15); }
+function setSpeed(v){ send({command:'set_speed', value:v}); }
+function sendKey(k) { vibrate(); send({command:'key', key:k}); }
 function clickBtn(btn, e) { if(e) e.preventDefault(); vibrate(); send({command:'click', button:btn}); }
 
 // ── Drag ──
@@ -256,28 +320,28 @@ let lastX=0, lastY=0, touchStartT=0, isScroll=false;
 
 pad.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (e.touches.length === 1) {
-    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-    touchStartT = Date.now(); isScroll = false;
-  } else if (e.touches.length === 2) {
-    isScroll = true; lastY = e.touches[0].clientY;
+  if (e.touches.length===1) {
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    touchStartT=Date.now(); isScroll=false;
+  } else if (e.touches.length===2) {
+    isScroll=true; lastY=e.touches[0].clientY;
   }
 }, {passive:false});
 
 pad.addEventListener('touchmove', e => {
   e.preventDefault();
-  if (isScroll && e.touches.length === 2) {
-    const cy = e.touches[0].clientY;
-    send({command:'scroll', dy: cy - lastY}); lastY = cy;
-  } else if (e.touches.length === 1) {
-    const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
-    send({command:'move', dx: cx-lastX, dy: cy-lastY});
-    lastX = cx; lastY = cy;
+  if (isScroll && e.touches.length===2) {
+    const cy=e.touches[0].clientY;
+    send({command:'scroll', dy:cy-lastY}); lastY=cy;
+  } else if (e.touches.length===1) {
+    const cx=e.touches[0].clientX, cy=e.touches[0].clientY;
+    send({command:'move', dx:cx-lastX, dy:cy-lastY});
+    lastX=cx; lastY=cy;
   }
 }, {passive:false});
 
 pad.addEventListener('touchend', e => {
-  if (!isScroll && e.changedTouches.length===1 && (Date.now()-touchStartT < 150))
+  if (!isScroll && e.changedTouches.length===1 && (Date.now()-touchStartT<150))
     clickBtn('left');
 });
 
@@ -292,13 +356,13 @@ function openKeyboard() {
 
 hiddenInput.addEventListener('input', e => {
   if (e.data) { send({command:'type', text:e.data}); }
-  else if (e.inputType === 'deleteContentBackward') { sendKey('BACKSPACE'); }
-  else if (hiddenInput.value.length === 0) { sendKey('BACKSPACE'); }
+  else if (e.inputType==='deleteContentBackward') { sendKey('BACKSPACE'); }
+  else if (hiddenInput.value.length===0) { sendKey('BACKSPACE'); }
   hiddenInput.value = SPACER;
 });
 
 hiddenInput.addEventListener('keyup', e => {
-  if (e.key === 'Enter') sendKey('ENTER');
+  if (e.key==='Enter') sendKey('ENTER');
 });
 
 // ── Restore last IP ──
