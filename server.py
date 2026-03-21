@@ -64,6 +64,21 @@ def cleanup_qr():
 
 atexit.register(cleanup_qr)
 
+def ensure_firewall_rule():
+    """Silently add Windows Firewall rule to allow port 8080."""
+    def _run():
+        try:
+            subprocess.run([
+                "netsh", "advfirewall", "firewall", "add", "rule",
+                "name=PC Controller",
+                "dir=in", "action=allow",
+                f"localport={PORT}", "protocol=tcp"
+            ], capture_output=True, timeout=5)
+            log.info("Firewall rule ensured")
+        except Exception as e:
+            log.warning(f"Firewall rule skipped: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
 # ============================================================
 # Command dispatcher
 # ============================================================
@@ -298,6 +313,7 @@ class ServerGUI:
         self.root.update()
 
     def _start_server(self):
+        ensure_firewall_rule()
         threading.Thread(target=start_wifi_server,
                          args=(asyncio.new_event_loop(),), daemon=True).start()
         self.root.after(500, self._load_qr)
