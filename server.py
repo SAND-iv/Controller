@@ -160,11 +160,10 @@ def _ble_write_request(characteristic, value: bytearray, **kwargs):
 
 async def run_ble_server(status_cb=None):
     try:
-        from bless import (BlessServer, GATTCharacteristicProperties,
-                           GATTAttributePermissions)
-    except ImportError:
-        log.error("bless not installed → pip install bless")
-        if status_cb: status_cb("BLE unavailable — install bless")
+        from bless import BlessServer, GATTCharacteristicProperties, GATTAttributePermissions
+    except Exception as e:
+        log.error(f"bless failed to load: {e}")
+        if status_cb: status_cb(f"BLE unavailable: {e}")
         return
 
     server = BlessServer(name=BLE_DEVICE_NAME, loop=asyncio.get_event_loop())
