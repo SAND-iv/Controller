@@ -1,0 +1,22 @@
+{
+  "appId": "com.okitha.pccontroller",
+  "appName": "PC Controller",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Scanning for PC Controller...",
+        "cancel": "Cancel",
+        "availableDevices": "Available devices",
+        "noDeviceFound": "No device found"
+      }
+    }
+  }
+}
