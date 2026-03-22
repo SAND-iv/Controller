@@ -55,7 +55,7 @@ The phone app sends JSON commands over a WebSocket. The Python server translates
 |---|---|
 | Mobile app | HTML5, CSS3, JavaScript, Capacitor |
 | PC server | Python, aiohttp, pyautogui, pynput, tkinter |
-| Build pipeline | GitHub Actions — APK + EXE on every push |
+| Build pipeline | GitHub Actions — manual APK + EXE builds |
 | Transport | WebSockets (ws://) |
 
 ---
